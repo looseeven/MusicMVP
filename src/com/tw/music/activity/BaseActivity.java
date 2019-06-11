@@ -1,4 +1,4 @@
-package com.tw.mvp.activity;
+package com.tw.music.activity;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -15,10 +15,24 @@ public abstract class BaseActivity extends Activity{
 	public abstract void initView() ;
 	public abstract void initData() ;
 	public abstract void ondestroy() ;
+	public abstract void onresume() ;
+	public abstract void onpause() ;
 	
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
 		ondestroy();
+	}
+	
+	@Override
+	protected void onResume() {
+		super.onResume();
+		onresume();
+	}
+	
+	@Override
+	protected void onPause() {
+		super.onPause();
+		onpause();
 	}
 }

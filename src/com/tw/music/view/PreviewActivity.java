@@ -1,27 +1,26 @@
-package com.tw.mvp.v;
+package com.tw.music.view;
 
-import com.tw.mvp.Contarct;
-import com.tw.mvp.Contarct.Presenter;
-import com.tw.mvp.R;
-import com.tw.mvp.activity.BaseActivity;
-import com.tw.mvp.p.PreviewPresenter;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.net.Uri;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
-import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.tw.music.R;
+import com.tw.music.activity.BaseActivity;
+import com.tw.music.contarct.Contarct;
+import com.tw.music.contarct.Contarct.prePresenter;
+import com.tw.music.presenter.PreviewPresenter;
 
 public class PreviewActivity extends BaseActivity implements Contarct.View{
 	private static final String TAG = "PreviewActivity";
 
 	public static Uri mUri;
-	private Contarct.Presenter mPresenter;
+	private Contarct.prePresenter mPresenter;
 	private TextView mTitle; //歌曲
 	private TextView mArtist; //专辑
 	private SeekBar mSeekBar; //播放进度条
@@ -89,10 +88,6 @@ public class PreviewActivity extends BaseActivity implements Contarct.View{
 		public void onStopTrackingTouch(SeekBar seekBar) {
 		}
 	};
-	@Override
-	public void setPresenter(Presenter presenter) {
-		this.mPresenter = presenter;
-	}
 
 
 	@Override
@@ -133,5 +128,21 @@ public class PreviewActivity extends BaseActivity implements Contarct.View{
 	@Override
 	public void ondestroy() {
 		mPresenter.setDestroy();
+	}
+
+	@Override
+	public void setPresenter(prePresenter presenter) {
+		this.mPresenter = presenter;
+	}
+
+
+	@Override
+	public void onresume() {
+		
+	}
+
+	@Override
+	public void onpause() {
+		
 	}
 }

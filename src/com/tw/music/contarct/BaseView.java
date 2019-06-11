@@ -14,19 +14,10 @@
  * limitations under the License.
  */
 
-package com.tw.mvp;
+package com.tw.music.contarct;
 
 public interface BaseView<T> {
     void setPresenter(T presenter);
-	/**
-     * 错误提示
-     */
-    void showError();
-
-    /**
-     * 准备提示
-     */
-    void onPrepared();
     /**
 	 * @param title 歌曲
 	 * @param artist 专辑

@@ -1,6 +1,9 @@
-package com.tw.mvp.p;
+package com.tw.music.presenter;
 
 import java.io.IOException;
+
+import com.tw.music.contarct.Contarct;
+
 import android.app.Activity;
 import android.content.AsyncQueryHandler;
 import android.content.ContentResolver;
@@ -21,11 +24,9 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
-import com.tw.mvp.Contarct;
-import com.tw.mvp.R;
 
 
-public class PreviewPresenter implements Contarct.Presenter,OnPreparedListener, OnErrorListener{
+public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListener, OnErrorListener{
     private Contarct.View PreView;
 	private PreviewPlayer mPlayer;
 	private static final String TAG = "PreviewPresenter";
@@ -38,8 +39,8 @@ public class PreviewPresenter implements Contarct.Presenter,OnPreparedListener, 
 	static Context mContext;
 	private boolean isOnDestroy = false;
 	
-    public PreviewPresenter(Contarct.View mvpView) {
-    	PreView = mvpView;
+    public PreviewPresenter(Contarct.View View) {
+    	PreView = View;
     	PreView.setPresenter(this);
     }
 
@@ -280,5 +281,15 @@ public class PreviewPresenter implements Contarct.Presenter,OnPreparedListener, 
 	public void setDestroy() {
 		isOnDestroy = false;
 		stopPlayback();
+	}
+
+	@Override
+	public void setPause() {
+		
+	}
+
+	@Override
+	public void setResume() {
+		
 	}
 }
