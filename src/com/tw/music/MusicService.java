@@ -28,6 +28,7 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.tw.music.utils.lrc.LrcTranscoding;
 import com.tw.music.view.MusicWidgetProvider;
 
 public class MusicService extends Service {
@@ -356,7 +357,6 @@ public class MusicService extends Service {
 	}
 
 	public void stop() {
-//		mTW.mCurrentPos = mMediaPlayer.getCurrentPosition();
 		mMediaPlayer.stop();
 		mHandler.removeMessages(SHOW_PROGRESS);
 		mTW.mCurrentArtist = null;
@@ -371,7 +371,6 @@ public class MusicService extends Service {
 		mTW.mCurrentAlbum = null;
 		mTW.mCurrentSong = null;
 		if(mTW.mAlbumArt != null) {
-//			mTW.mAlbumArt.recycle();
 			mTW.mAlbumArt = null;
 		}
         String localeString = null;
@@ -388,7 +387,6 @@ public class MusicService extends Service {
             }
         }
 		MediaMetadataRetriever r = new MediaMetadataRetriever();
-//		r.setDataSource(localeString);
 		try {
 			r.setDataSource(path);
 			if(r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) != null) {
@@ -429,10 +427,10 @@ public class MusicService extends Service {
 		try {
 			if (path != null) {
 				path = path.substring(0, path.lastIndexOf("."))+".lrc";
-//				MusicActivity.mLrcView.setLrc(LrcTranscoding.converfile(path));
-//				MusicActivity.mLrcView.setPlayer(mMediaPlayer);
-//				MusicActivity.mLrcView.setMode(0);				
-//				MusicActivity.mLrcView.init();
+				MusicActivity.lrc_view.setLrc(LrcTranscoding.converfile(path));
+				MusicActivity.lrc_view.setPlayer(mMediaPlayer);
+				MusicActivity.lrc_view.setMode(0);				
+				MusicActivity.lrc_view.init();
 				return path;
 			}
 		} catch (Exception e) {
@@ -708,7 +706,6 @@ public class MusicService extends Service {
     }
 
     public MediaPlayer getPlayer() {
-		// TODO Auto-generated method stub
 		return mMediaPlayer;
 	}
 }

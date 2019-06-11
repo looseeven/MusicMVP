@@ -1,25 +1,43 @@
 package com.tw.music.presenter;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.Locale;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.graphics.drawable.AnimationDrawable;
+import android.media.MediaPlayer;
+import android.media.MediaPlayer.OnErrorListener;
+import android.media.audiofx.Visualizer;
 import android.os.Build;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.View.OnClickListener;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import com.tw.music.MusicService;
 import com.tw.music.R;
@@ -29,6 +47,7 @@ import com.tw.music.bean.Record;
 import com.tw.music.contarct.Contarct;
 import com.tw.music.utils.CollectionUtils;
 import com.tw.music.utils.SharedPreferencesUtils;
+import com.tw.music.utils.visualizer.BaseVisualizerView;
 
 public class MusicPresenter implements Contarct.mainPresenter{
 	private static final String TAG = "MusicPresenter";
@@ -37,7 +56,8 @@ public class MusicPresenter implements Contarct.mainPresenter{
 	Context mContext; 
 	int wallpoition =0;//壁纸
 	private MusicService mService = null;
-	
+	private static final int NOTIFY_CHANGE = 0xff01;
+    private static final int SHOW_PROGRESS = 0xff02;
 	
 	public MusicPresenter(Contarct.mainView view) {
 		mainView = view;
@@ -49,23 +69,221 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		mTW = TWMusic.open();
 		this.mContext = mContext;
 		fullScreen((Activity) mContext);
-		showFreqView=(SharedPreferencesUtils.getBooleanPref(mContext, "music","showFreqView"));
-		wallpoition = SharedPreferencesUtils.getIntPref(mContext, "id", "id");
-		mainView.setWallPaper(wallpoition);
+        initRecord();
+        mContext.bindService(new Intent(mContext, MusicService.class), mConnection, mContext.BIND_AUTO_CREATE);
+        setIndex(mTW.mCurrentPath);
+        mainView.showListDrawer(mCList.mIndex);
 	}
+	
+	/**
+	 * 根据播放路径拿到临时播放目录
+	 * @param args
+	 */
+    private void setIndex(String args) {
+    	if (args == null) {
+			return;
+		}
+        if(args.contains("/mnt/sdcard/iNand")){
+        	mCList = mMediaRecord;
+			mCList.mIndex = 3;
+        }else if(args.contains("/storage/usb")){
+        	if(mUSBRecordArrayList.size() > 0) {
+    			if(mUSBRecordLevel >= mUSBRecordArrayList.size()) {
+    				mUSBRecordLevel = 0;
+    			}
+				mCList = mUSBRecordArrayList.get(mUSBRecordLevel);
+			} else {
+    			mCList = mUSBRecord;
+			}    			
+        }else if(args.contains("/storage/extsd")){
+        	if(mSDRecordArrayList.size() > 0) {
+    			if(mSDRecordLevel >= mSDRecordArrayList.size()) {
+    				mSDRecordLevel = 0;
+    			}
+				mCList = mSDRecordArrayList.get(mSDRecordLevel);
+			} else {
+    			mCList = mSDRecord;
+			}
+        }else{
+        	mCList = mTW.mPlaylistRecord;
+			mCList.mIndex = 0;
+        }
+    }
+    private Handler mHandler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {
+			switch(msg.what) {
+			case TWMusic.RETURN_MOUNT: {
+				String volume = null;
+				switch(msg.arg1) {
+				case 1:
+					volume = "/storage/" + msg.obj;
+					if(msg.arg2 == 0) {
+						removeRecordSD(volume);
+					} else {
+						addRecordSD(volume);
+					}
+					break;
+				case 2:
+					volume = "/storage/" + msg.obj;
+					if(msg.arg2 == 0) {
+						removeRecordUSB(volume);
+					} else {
+						addRecordUSB(volume);
+					}
+					break;
+				case 3:
+					volume = "/mnt/sdcard/iNand";
+					if(msg.arg2 == 0) {
+						mMediaRecord.clearRecord();
+					} else {
+						loadVolume(mMediaRecord, volume);
+					}
+					break;
+				}
+				if((mTW.mCurrentPath != null) && mTW.mCurrentPath.startsWith(volume)) {
+					if(msg.arg2 != 0) {
+						if((mService != null) && !mService.isPlaying() && (mTW.getService() == TWMusic.ACTIVITY_RUSEME)) {
+							mService.start();
+							mService.seekTo(mTW.mCurrentPos);
+							mService.duck(false);
+						}
+					}
+				}
+				mAdapter.notifyDataSetChanged();
+				break;
+			}
+			case NOTIFY_CHANGE:
+				if(mService != null) {
+					showMusicInfo();
+				}
+				break;
+			case SHOW_PROGRESS:
+				if(mService != null) {
+					int duration = mService.getDuration();
+					int position = mService.getCurrentPosition();
+					if(duration < 0) {
+						duration = 0;
+					}
+					if(position < 0) {
+						position = 0;
+					}
+					/**
+					 * 修复拖拉进度条，音乐结束多运行几秒的问题
+					 * @author Truman
+					 */
+					if(position > duration){
+						return;
+					} else {
+						mainView.setSeekBar(duration, position);
+					}
+					CharSequence artistName = mService.getArtistName();
+			        CharSequence albumName = mService.getAlbumName();
+			        CharSequence titleName = mService.getTrackName();
+			        CharSequence fileName = mService.getFileName();
+			        if(artistName == null) {
+			        	artistName = mContext.getString(R.string.unknown);
+			        }
+			        if(albumName == null) {
+			        	albumName = mContext.getString(R.string.unknown);
+			        }
+			        if(titleName == null) {
+			        	titleName = mService.getFileName();
+			        	if(titleName == null) {
+			        		titleName = mContext.getString(R.string.unknown);
+			        	}
+			        }
+			        mainView.setID3((String)titleName, (String)artistName, (String)albumName);
+					CollectionUtils.getCollectionMusicList(mContext,likeMusic);
+				}
+				break;
+			}
+		}
+    };
+    
+	/**
+	 * 
+	 */
+	private ServiceConnection mConnection = new ServiceConnection() {
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			mService = null;
+		}
 
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			mService = ((MusicService.MusicBinder)service).getService();
+			mService.setAHandler(mHandler);
+			if(!mService.isPlaying()) {
+				mService.start();
+				mService.seekTo(mTW.mCurrentPos);
+				mService.duck(false);
+			}
+			setupVisualizerFxAndUi();
+//			mHandler.sendEmptyMessage(NOTIFY_CHANGE);
+		}
+	};
+	public static int fx_height,fx_width;
+    private BaseVisualizerView mBaseVisualizerView;
+    private Visualizer mVisualizer;
+	private void setupVisualizerFxAndUi() {
+		mBaseVisualizerView = new BaseVisualizerView(mContext);
+		mBaseVisualizerView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
+		if(mVisualizer != null){
+            mVisualizer = null;
+        }
+		mVisualizer = new Visualizer(mService.getPlayer().getAudioSessionId());
+		mVisualizer.setEnabled(false);
+		mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
+//		n = mVisualizer.getCaptureSize();//频谱段位
+		mBaseVisualizerView.setVisualizer(mVisualizer);
+		mVisualizer.setEnabled(true);
+		mainView.addVisualizerView(mBaseVisualizerView);
+	}
+    @Override
+	public void setDestroy() {
+    	mTW.requestSource(false);
+		if(mService != null) {
+			mService.setAHandler(null);
+		}
+		try { 
+			mContext.unbindService(mConnection);
+		} catch (Exception e) {
+		}
+		mTW.close();
+		mTW = null;
+	}
 	@Override
 	public void setPause() {
-
+		mTW.requestService(TWMusic.ACTIVITY_PAUSE);
 	}
 
 	@Override
 	public void setResume() {
+		mTW.requestService(TWMusic.ACTIVITY_RUSEME);
+		if((mService != null) && !mService.isPlaying()) {
+			mService.start();
+			mService.seekTo(mTW.mCurrentPos);
+			mService.duck(false);
+		}
+		if (mTW!=null) {
+			mainView.showRepeat(mTW.mRepeat, 0);
+		}
+		showFreqView=(SharedPreferencesUtils.getBooleanPref(mContext, "music","showFreqView"));
+		wallpoition = SharedPreferencesUtils.getIntPref(mContext, "id", "id");
+		mainView.setWallPaper(wallpoition);
+		CollectionUtils.getCollectionMusicList(mContext,likeMusic);
 	}
 
 	@Override
 	public void setSeekBar(int progress) {
-
+		seekTo(progress);
+	}
+	
+	private void seekTo(int msec) {
+    	if(mService != null) {
+        	mService.seekTo(msec);
+    	}
 	}
 
 	@Override
@@ -79,10 +297,7 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		}
 	}
 
-	@Override
-	public void setDestroy() {
-
-	}
+	
 	@SuppressLint("NewApi")
 	private void fullScreen(Activity activity) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -155,16 +370,12 @@ public class MusicPresenter implements Contarct.mainPresenter{
 
 	@Override
 	public void setPrev() {
-		if(mService != null) {
-        	mService.prev();
-    	}
+		prev();
 	}
 
 	@Override
 	public void setNext() {
-		if(mService != null) {
-        	mService.next();
-    	}
+		next();
 	}
 
 	@Override
@@ -192,6 +403,8 @@ public class MusicPresenter implements Contarct.mainPresenter{
 	}
 
     private ArrayList<MusicName> likeMusic = new ArrayList<MusicName>();
+    private ArrayList<Record> mSDRecordArrayList = new ArrayList<Record>();
+    private ArrayList<Record> mUSBRecordArrayList = new ArrayList<Record>();
 	private boolean isCollectMusic = false;
 	private ListView mList;
 	
@@ -504,29 +717,387 @@ public class MusicPresenter implements Contarct.mainPresenter{
 	@Override
 	public void openPlayList() {
 		mainView.showListDrawer(0);
+		mCList = mTW.mPlaylistRecord;
+		mCList.mIndex = 0;
+		mAdapter.notifyDataSetChanged();
 	}
-
+    private int mSDRecordLevel = 0;
+    private int mUSBRecordLevel = 0;
 	@Override
 	public void openSDList() {
 		mainView.showListDrawer(1);
-		
+		if(mSDRecordArrayList.size() > 0) {
+			if(mSDRecordLevel >= mSDRecordArrayList.size()) {
+				mSDRecordLevel = 0;
+			}
+			mCList = mSDRecordArrayList.get(mSDRecordLevel);
+		} else {
+			mCList = mSDRecord;
+		}
+		mAdapter.notifyDataSetChanged();
 	}
 	@Override
 	public void openUSBList() {
 		mainView.showListDrawer(2);
-		
+		if(mUSBRecordArrayList.size() > 0) {
+			if(mUSBRecordLevel >= mUSBRecordArrayList.size()) {
+				mUSBRecordLevel = 0;
+			}
+			mCList = mUSBRecordArrayList.get(mUSBRecordLevel);
+		} else {
+			mCList = mUSBRecord;
+		}
+		mAdapter.notifyDataSetChanged();
 	}
 	@Override
 	public void openiNandList() {
 		mainView.showListDrawer(3);
-		
+		mCList = mMediaRecord;
+		mCList.mIndex = 3;
+//		r.mLevel = 0;
+		mAdapter.notifyDataSetChanged();
 	}
 
 	@Override
 	public void openCollectList() {
 		mainView.showListDrawer(4);
-		
+		collectList();
+		mAdapter.notifyDataSetChanged();
 	}
 
+	@Override
+	public void setListitemlistener(int position) {
+		try {
+			if(isCollectMusic){
+				mTW.mCurrentAPath = likeMusic.get(position).mPath;
+				String path = mTW.mCurrentAPath.substring(0, mTW.mCurrentAPath.lastIndexOf("/"));
+				mTW.mCurrentPath = path;
+				mTW.mPlaylistRecord.copyLName(mLikeRecord);
+				mTW.toRPlaylist(position);
+				current(0, false);
+				mService.mMediaPlayer.setOnErrorListener(new OnErrorListener() {
+		            @Override
+		            public boolean onError(MediaPlayer mp, int what, int extra) {
+		                try {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+                            builder.setMessage(R.string.noplay);
+                            builder.setCancelable(true);
+                            final AlertDialog dlg = builder.create();
+                            dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+                            dlg.show();
+                            mHandler.postDelayed(new Runnable() {
+                                public void run() {
+                                    dlg.dismiss();
+                                    next();
+                                }
+                            }, 2000);
+                            } catch (Exception e) {
+                            }
+		                return true;
+		            }
+		        });
+			}else {
+				if((mCList.mLevel != 0) && (position == 0)){
+					mCList = mCList.mPrev;
+				} else {
+					if(mCList.mLevel != 0) {
+						position--;
+					}
+					if((mCList.mLevel == 0) && (mCList.mIndex != 0)) {
+						Record r = mCList.getNext(position);
+						if(r == null) {
+							r = new Record(mCList.mLName[position].mName, position, mCList.mLevel + 1, mCList);
+							mTW.loadFile(r, mCList.mLName[position].mPath);
+						}
+						mCList.setNext(r);
+						mCList = r;
+					} else {
+						mTW.mCurrentIndex = position;
+						mTW.mCurrentAPath = mCList.mLName[position].mPath;
+						String path = mTW.mCurrentAPath.substring(0, mTW.mCurrentAPath.lastIndexOf("/"));
+						if(path != null) {
+							if(mCList.mLevel == 1) {
+								mTW.mPlaylistRecord.copyLName(mCList);
+							}
+						}
+						mTW.toRPlaylist(position);
+						mTW.mCurrentPath = path;
+						current(0, false);
+//						showPlayingOrPlayList();
+						mService.mMediaPlayer.setOnErrorListener(new OnErrorListener() {
+                            @Override
+                            public boolean onError(MediaPlayer mp, int what, int extra) {
+                                try {
+                                    AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+                                    builder.setMessage(R.string.noplay);
+                                    builder.setCancelable(true);
+                                    final AlertDialog dlg = builder.create();
+                                    dlg.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+                                    dlg.show();
+                                    mHandler.postDelayed(new Runnable() {
+                                        public void run() {
+                                            dlg.dismiss();
+                                        }
+                                    }, 2000);
+
+                                    } catch (Exception e) {
+                                    }
+                                return true;
+                            }
+                        });
+					}
+				}
+			}
+			mList.requestLayout();
+			mAdapter.notifyDataSetChanged();
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+	}
 	
+	private void current(int pos, boolean r) {
+    	if(mService != null) {
+        	mService.current(pos, r);
+    	}
+    }
+    private void next() {
+    	if(mService != null) {
+        	mService.next();
+    	}
+    }
+    private void prev() {
+		if(mService != null) {
+        	mService.prev();
+    	}
+	}
+    private void initRecord() {
+    	mSDRecord = new Record("SD", 1, 0);
+    	File[] fileSD = new File("/storage").listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File f) {
+				String n = f.getName();
+				if(f.canRead() && f.isDirectory() && n.startsWith("extsd")) {
+					return true;
+				}
+				return false;
+			}
+    	});
+    	if(fileSD != null) {
+        	for(File f : fileSD) {
+        		addRecordSD(f.getAbsolutePath());
+        	}
+    	}
+    	mUSBRecord = new Record("USB", 2, 0);
+    	File[] fileUSB = new File("/storage").listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File f) {
+				String n = f.getName();
+				if(f.canRead() && f.isDirectory() && n.startsWith("usb")) {
+					return true;
+				}
+				return false;
+			}
+    	});
+    	if(fileUSB != null) {
+        	for(File f : fileUSB) {
+        		addRecordUSB(f.getAbsolutePath());
+        	}
+    	}
+    	mMediaRecord = new Record("iNand", 3, 0);
+    	loadVolume(mMediaRecord, "/mnt/sdcard/iNand");
+    	mCList = mTW.mPlaylistRecord;
+    	if (mCList.mCLength == 0) {
+			if(mSDRecordArrayList.size() > 0) {
+				mCList = mSDRecordArrayList.get(0);
+			} else {
+    			mCList = mSDRecord;
+			}
+	    	if (mCList.mCLength == 0) {
+    			if(mUSBRecordArrayList.size() > 0) {
+    				mCList = mUSBRecordArrayList.get(0);
+    			} else {
+        			mCList = mUSBRecord;
+    			}
+		    	if (mCList.mCLength == 0) {
+		    		mCList = mMediaRecord;
+			    	if (mCList.mCLength == 0) {
+			    		mCList = mTW.mPlaylistRecord;
+			    	}
+		    	}
+	    	}
+    	}
+    }
+    private void loadVolume(Record record, String volume) {
+    	if ((record != null) && (volume != null)) {
+     		try {
+     	   		BufferedReader br = null;
+    			try {
+    				String xpath = null;
+    				if(volume.startsWith("/storage/usb") || volume.startsWith("/storage/extsd")) {
+    					xpath = "/data/tw/" + volume.substring(9);
+    				} else {
+    					xpath = volume + "/DCIM";
+    				}
+    				br = new BufferedReader(new FileReader(xpath + "/.music"));
+    				String path = null;
+    				ArrayList<MusicName> l = new ArrayList<MusicName>();
+    				while((path = br.readLine()) != null) {
+    					File f = new File(volume + "/" + path);
+    					if (f.canRead() && f.isDirectory()) {
+    						String n = f.getName();
+    						String p = f.getAbsolutePath();
+    						if(n.equals(".")) {
+    							String p2 = p.substring(0, p.lastIndexOf("/"));
+    							String p3 = p2.substring(p2.lastIndexOf("/") + 1);
+    							if(mTW.loadFileIsHas(p)){
+    							   l.add(new MusicName(p3, p));
+    							}
+    						} else {
+    						    if(mTW.loadFileIsHas(p)){
+        						   l.add(new MusicName(n, p));
+    						    }
+    						}
+    					}
+    				}
+    				record.setLength(l.size());
+    				for(MusicName n : l) {
+    					record.add(n);
+    				}
+    				l.clear();
+    			} catch (Exception e) {
+    			} finally {
+    				if(br != null) {
+    					br.close();
+    					br = null;
+    				}
+    			}
+			} catch (Exception e) {
+			}
+    	}
+    }
+
+    private void addRecordSD(String path) {
+		for(Record r : mSDRecordArrayList) {
+			if(path.equals(r.mName)) {
+				return;
+			}
+		}
+		Record r = new Record(path, 1, 0);
+		loadVolume(r, path);
+		mSDRecordArrayList.add(r);
+		if((mCList != null) && mCList.mName.equals("SD")) {
+			mCList = mSDRecordArrayList.get(0);
+		}
+    }
+
+    private void addRecordUSB(String path) {
+		for(Record r : mUSBRecordArrayList) {
+			if(path.equals(r.mName)) {
+				return;
+			}
+		}
+		Record r = new Record(path, 2, 0);
+		loadVolume(r, path);
+		mUSBRecordArrayList.add(r);
+		if((mCList != null) && mCList.mName.equals("USB")) {
+			mCList = mUSBRecordArrayList.get(0);
+		}
+    }
+
+    private void removeRecordSD(String path) {
+		for(Record r : mSDRecordArrayList) {
+			if(path.equals(r.mName)) {
+				Record t = mCList;
+				if(mCList.mLevel == 1) {
+					t = mCList.mPrev;
+				}
+				String s = t.mName;
+				r.clearRecord();
+				mSDRecordArrayList.remove(r);
+				if(mSDRecordLevel >= mSDRecordArrayList.size()){
+					mSDRecordLevel = mSDRecordArrayList.size() - 1;
+					if(mSDRecordLevel < 0) {
+						mSDRecordLevel = 0;
+					}
+				}
+				if(path.equals(s)) {
+	    			if(mSDRecordArrayList.size() > 0) {
+	    				mCList = mSDRecordArrayList.get(mSDRecordLevel);
+	    			} else {
+	        			mCList = mSDRecord;
+	    			}
+				}
+				return;
+			}
+		}
+    }
+
+    private void removeRecordUSB(String path) {
+		for(Record r : mUSBRecordArrayList) {
+			if(path.equals(r.mName)) {
+				Record t = mCList;
+				if(mCList.mLevel == 1) {
+					t = mCList.mPrev;
+				}
+				String s = t.mName;
+				r.clearRecord();
+				mUSBRecordArrayList.remove(r);
+				if(mUSBRecordLevel >= mUSBRecordArrayList.size()){
+					mUSBRecordLevel = mUSBRecordArrayList.size() - 1;
+					if(mUSBRecordLevel < 0) {
+						mUSBRecordLevel = 0;
+					}
+				}
+				if(path.equals(s)) {
+	    			if(mUSBRecordArrayList.size() > 0) {
+	    				mCList = mUSBRecordArrayList.get(mUSBRecordLevel);
+	    			} else {
+	        			mCList = mUSBRecord;
+	    			}
+				}
+				return;
+			}
+		}
+    }
+    
+    private final String ACTION_UPDATE_ALL = "com.gss.widget.UPDATE_ALL";
+	private void showMusicInfo() {
+		int MusicType = mService.isPlaying() ? 1 : 0;
+		Intent intent = new Intent();
+        intent.setAction(ACTION_UPDATE_ALL);
+        intent.putExtra("musictype", MusicType);//int 数据  1 播放， 0 暂停
+        mContext.sendBroadcast(intent);
+        CharSequence artistName = mService.getArtistName();
+        CharSequence albumName = mService.getAlbumName();
+        CharSequence titleName = mService.getTrackName();
+        CharSequence fileName = mService.getFileName();
+        if(artistName == null) {
+        	artistName = mContext.getString(R.string.unknown);
+        }
+        if(albumName == null) {
+        	albumName = mContext.getString(R.string.unknown);
+        }
+        if(titleName == null) {
+        	titleName = mService.getFileName();
+        	if(titleName == null) {
+        		titleName = mContext.getString(R.string.unknown);
+        	}
+        }
+		mAdapter.notifyDataSetChanged();
+		mList.smoothScrollToPosition(mTW.mCurrentIndex + mCList.mLevel);
+		updateCollectButtonState();
+        mainView.showPlaypause(mService.isPlaying());
+		mainView.setID3((String)titleName, (String)artistName, (String)albumName);
+		mainView.addAlbumArt(mService.getAlbumArt());
+	}
+	
+	private void updateCollectButtonState(){
+		if (mTW.mCurrentAPath != null) {
+			if (CollectionUtils.itBeenCollected(mContext, mTW.mCurrentAPath, likeMusic)) {
+				mainView.showCollect(true);
+			} else {
+				mainView.showCollect(false);
+			}
+		}
+	}
 }

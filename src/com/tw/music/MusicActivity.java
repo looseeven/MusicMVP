@@ -2,25 +2,41 @@ package com.tw.music;
 
 import java.util.Locale;
 
+import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
+import android.media.audiofx.Visualizer;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 
 import com.tw.music.activity.BaseActivity;
 import com.tw.music.contarct.Contarct;
 import com.tw.music.contarct.Contarct.mainPresenter;
 import com.tw.music.presenter.MusicPresenter;
+import com.tw.music.utils.CircleImageView;
 import com.tw.music.utils.lrc.LrcView;
+import com.tw.music.utils.visualizer.BaseVisualizerView;
 
 public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	private static final String TAG = "MusicActivity";
 	private Contarct.mainPresenter mPresenter;
 	private boolean isPlayPause = false;
-
+	private ListView mList;
+	private CircleImageView mAlbumArt;
+    private ImageView mAlbumArt2;
+    private SeekBar mProgress;
+	
 	@Override
 	public void initView() {
 		getWindow().setFormat(PixelFormat.TRANSLUCENT);
@@ -31,9 +47,46 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 
 	@Override
 	public void initData() {
-
+		lrc_view = (LrcView) findViewById(R.id.lrc_view);
+		ll_fx = (LinearLayout) findViewById(R.id.ll_fx);
+        mList = (ListView)findViewById(R.id.list);
+        mList.setOnItemClickListener(itemClickListener);
+        ll_fx.setOrientation(LinearLayout.VERTICAL);
+        mAlbumArt2=(ImageView) findViewById(R.id.iv_album);
+        mAlbumArt = (CircleImageView)findViewById(R.id.albumart);
+        mProgress = ((SeekBar)findViewById(R.id.progress));
+        mProgress.setOnSeekBarChangeListener(seekbarlistener);
 	}
 
+	OnSeekBarChangeListener seekbarlistener = new OnSeekBarChangeListener() {
+		
+		@Override
+		public void onStopTrackingTouch(SeekBar seekBar) {
+		}
+		
+		@Override
+		public void onStartTrackingTouch(SeekBar seekBar) {
+			
+		}
+		
+		@Override
+		public void onProgressChanged(SeekBar seekBar, int progress,
+				boolean fromUser) {
+			if (fromUser) {
+				mPresenter.setSeekBar(progress);
+			}
+		}
+	};
+	
+	OnItemClickListener itemClickListener = new OnItemClickListener() {
+
+		@Override
+		public void onItemClick(AdapterView<?> parent, View view,
+				int position, long id) {
+			mPresenter.setListitemlistener(position);
+		}
+	};
+	 
 	public void onClick(View v){
 		switch (v.getId()) {
 		case R.id.btn_bg:
@@ -148,11 +201,6 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	}
 
 	@Override
-	public void onPointerCaptureChanged(boolean hasCapture) {
-
-	}
-
-	@Override
 	public void setPresenter(mainPresenter presenter) {
 		this.mPresenter = presenter;
 	}
@@ -207,11 +255,11 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 		((ImageView) findViewById(R.id.iv_fx)).getDrawable().setLevel(b?0:1);
 		((ImageView) findViewById(R.id.iv_lrc)).getDrawable().setLevel(b?1:0);
 		if (b) {
-			((LinearLayout) findViewById(R.id.ll_fx)).setVisibility(View.INVISIBLE);
-			((LrcView) findViewById(R.id.lrc_view)).setVisibility(View.VISIBLE);
+			ll_fx.setVisibility(View.INVISIBLE);
+			lrc_view.setVisibility(View.VISIBLE);
 		}else{
-			((LrcView) findViewById(R.id.lrc_view)).setVisibility(View.INVISIBLE);
-			((LinearLayout) findViewById(R.id.ll_fx)).setVisibility(View.VISIBLE);
+			lrc_view.setVisibility(View.INVISIBLE);
+			ll_fx.setVisibility(View.VISIBLE);
 		}
 	}
 
@@ -246,6 +294,26 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 				((TextView)findViewById(TR_ID[j])).getBackground().setLevel(0);
 				((TextView)findViewById(TR_ID[j])).getCompoundDrawables()[1].setLevel(0);
 			}
+		}
+	}
+	
+
+    private LinearLayout ll_fx;
+	public static LrcView lrc_view;
+
+	@Override
+	public void addVisualizerView(BaseVisualizerView mBaseVisualizerView) {
+		ll_fx.addView(mBaseVisualizerView);
+	}
+
+	@Override
+	public void addAlbumArt(Bitmap bm) {
+		if(bm == null) {
+			mAlbumArt.setImageResource(R.drawable.album_l);
+			mAlbumArt2.setImageResource(R.drawable.album123);
+		} else {
+			mAlbumArt.setImageBitmap(bm);
+			mAlbumArt2.setImageBitmap(bm);
 		}
 	}
 }

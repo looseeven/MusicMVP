@@ -1,8 +1,11 @@
 package com.tw.music.contarct;
 
 import com.tw.music.presenter.BasePresenter;
+import com.tw.music.utils.visualizer.BaseVisualizerView;
 
+import android.graphics.Bitmap;
 import android.net.Uri;
+import android.view.View;
 
 public interface Contarct {
     interface View extends BaseView<prePresenter> {
@@ -46,6 +49,14 @@ public interface Contarct {
     	 * 0播放列表 1SD 2USB 3iNand 4收藏
     	 */
     	void showListDrawer(int i);
+    	/**
+    	 * 加载频谱
+    	 */
+    	void addVisualizerView(BaseVisualizerView mBaseVisualizerView);
+    	/**
+    	 * 加载专辑图片
+    	 */
+    	void addAlbumArt(Bitmap bm);
     }
     interface mainPresenter extends BasePresenter {
     	/**
@@ -100,5 +111,13 @@ public interface Contarct {
 		 * USB列表界面
 		 */
 		void openUSBList();
+		
+		/**
+		 * 
+		 * @param view
+		 * @param position
+		 * @param id
+		 */
+		void setListitemlistener(int position);
     }
 }
