@@ -5,8 +5,6 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.Locale;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -28,16 +26,11 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.View.OnClickListener;
-import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.ListView;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import com.tw.music.MusicService;
 import com.tw.music.R;
@@ -49,15 +42,32 @@ import com.tw.music.utils.CollectionUtils;
 import com.tw.music.utils.SharedPreferencesUtils;
 import com.tw.music.utils.visualizer.BaseVisualizerView;
 
+/**
+ * @author xy by 20190612
+ * The logical layer of the music master module
+ */
 public class MusicPresenter implements Contarct.mainPresenter{
 	private static final String TAG = "MusicPresenter";
-	private Contarct.mainView mainView;
+	private Contarct.mainView mainView; 
 	private TWMusic mTW = null;
 	Context mContext; 
 	int wallpoition =0;//壁纸
-	private MusicService mService = null;
-	private static final int NOTIFY_CHANGE = 0xff01;
-    private static final int SHOW_PROGRESS = 0xff02;
+	private MusicService mService = null; 
+    private final String ACTION_UPDATE_ALL = "com.gss.widget.UPDATE_ALL";	
+    private BaseVisualizerView mBaseVisualizerView;
+    private Visualizer mVisualizer;
+    private boolean showFreqView=true; //由于控制显示歌词/频谱
+    private MyListAdapter mAdapter;
+    private Record mSDRecord;
+    private Record mUSBRecord;
+    private Record mMediaRecord;
+    private Record mCList;
+    private Record mLikeRecord = new Record("LIKE", 4, 0);//用于存放收藏列表的目录
+    private ArrayList<MusicName> likeMusic = new ArrayList<MusicName>(); //收藏歌曲的列表 存有名字+路径
+    private ArrayList<Record> mSDRecordArrayList = new ArrayList<Record>(); //用于存放所有SD有关音乐的目录 SD1 2 3
+    private ArrayList<Record> mUSBRecordArrayList = new ArrayList<Record>();//用于存放所有USB有关音乐的目录 USB1 2 3
+	private boolean isCollectMusic = false; //用于判断是否在收藏列表
+
 	
 	public MusicPresenter(Contarct.mainView view) {
 		mainView = view;
@@ -73,6 +83,9 @@ public class MusicPresenter implements Contarct.mainPresenter{
         mContext.bindService(new Intent(mContext, MusicService.class), mConnection, mContext.BIND_AUTO_CREATE);
         setIndex(mTW.mCurrentPath);
         mainView.showListDrawer(mCList.mIndex);
+        Log.i("md", "mCList.mIndex: "+mCList.mIndex);
+        mAdapter = new MyListAdapter(mContext);
+        mainView.updateAdapterData(mAdapter);
 	}
 	
 	/**
@@ -88,19 +101,19 @@ public class MusicPresenter implements Contarct.mainPresenter{
 			mCList.mIndex = 3;
         }else if(args.contains("/storage/usb")){
         	if(mUSBRecordArrayList.size() > 0) {
-    			if(mUSBRecordLevel >= mUSBRecordArrayList.size()) {
-    				mUSBRecordLevel = 0;
+    			if(mTW.mUSBRecordLevel >= mUSBRecordArrayList.size()) {
+    				mTW.mUSBRecordLevel = 0;
     			}
-				mCList = mUSBRecordArrayList.get(mUSBRecordLevel);
+				mCList = mUSBRecordArrayList.get(mTW.mUSBRecordLevel);
 			} else {
     			mCList = mUSBRecord;
 			}    			
         }else if(args.contains("/storage/extsd")){
         	if(mSDRecordArrayList.size() > 0) {
-    			if(mSDRecordLevel >= mSDRecordArrayList.size()) {
-    				mSDRecordLevel = 0;
+    			if(mTW.mSDRecordLevel >= mSDRecordArrayList.size()) {
+    				mTW.mSDRecordLevel = 0;
     			}
-				mCList = mSDRecordArrayList.get(mSDRecordLevel);
+				mCList = mSDRecordArrayList.get(mTW.mSDRecordLevel);
 			} else {
     			mCList = mSDRecord;
 			}
@@ -153,12 +166,12 @@ public class MusicPresenter implements Contarct.mainPresenter{
 				mAdapter.notifyDataSetChanged();
 				break;
 			}
-			case NOTIFY_CHANGE:
+			case TWMusic.NOTIFY_CHANGE:
 				if(mService != null) {
 					showMusicInfo();
 				}
 				break;
-			case SHOW_PROGRESS:
+			case TWMusic.SHOW_PROGRESS:
 				if(mService != null) {
 					int duration = mService.getDuration();
 					int position = mService.getCurrentPosition();
@@ -175,7 +188,7 @@ public class MusicPresenter implements Contarct.mainPresenter{
 					if(position > duration){
 						return;
 					} else {
-						mainView.setSeekBar(duration, position);
+						mainView.showSeekBar(duration, position);
 					}
 					CharSequence artistName = mService.getArtistName();
 			        CharSequence albumName = mService.getAlbumName();
@@ -193,7 +206,7 @@ public class MusicPresenter implements Contarct.mainPresenter{
 			        		titleName = mContext.getString(R.string.unknown);
 			        	}
 			        }
-			        mainView.setID3((String)titleName, (String)artistName, (String)albumName);
+			        mainView.showID3((String)titleName, (String)artistName, (String)albumName);
 					CollectionUtils.getCollectionMusicList(mContext,likeMusic);
 				}
 				break;
@@ -220,12 +233,10 @@ public class MusicPresenter implements Contarct.mainPresenter{
 				mService.duck(false);
 			}
 			setupVisualizerFxAndUi();
-//			mHandler.sendEmptyMessage(NOTIFY_CHANGE);
+			mHandler.sendEmptyMessage(mTW.NOTIFY_CHANGE);
 		}
 	};
-	public static int fx_height,fx_width;
-    private BaseVisualizerView mBaseVisualizerView;
-    private Visualizer mVisualizer;
+
 	private void setupVisualizerFxAndUi() {
 		mBaseVisualizerView = new BaseVisualizerView(mContext);
 		mBaseVisualizerView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
@@ -235,13 +246,13 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		mVisualizer = new Visualizer(mService.getPlayer().getAudioSessionId());
 		mVisualizer.setEnabled(false);
 		mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-//		n = mVisualizer.getCaptureSize();//频谱段位
+//		mVisualizer.getCaptureSize();//频谱段位
 		mBaseVisualizerView.setVisualizer(mVisualizer);
 		mVisualizer.setEnabled(true);
-		mainView.addVisualizerView(mBaseVisualizerView);
+		mainView.showVisualizerView(mBaseVisualizerView);
 	}
     @Override
-	public void setDestroy() {
+	public void ondestroy() {
     	mTW.requestSource(false);
 		if(mService != null) {
 			mService.setAHandler(null);
@@ -254,12 +265,12 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		mTW = null;
 	}
 	@Override
-	public void setPause() {
+	public void onpause() {
 		mTW.requestService(TWMusic.ACTIVITY_PAUSE);
 	}
 
 	@Override
-	public void setResume() {
+	public void onresume() {
 		mTW.requestService(TWMusic.ACTIVITY_RUSEME);
 		if((mService != null) && !mService.isPlaying()) {
 			mService.start();
@@ -271,7 +282,8 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		}
 		showFreqView=(SharedPreferencesUtils.getBooleanPref(mContext, "music","showFreqView"));
 		wallpoition = SharedPreferencesUtils.getIntPref(mContext, "id", "id");
-		mainView.setWallPaper(wallpoition);
+		mainView.showWallPaper(wallpoition);
+		mainView.showLrcorVis(showFreqView);
 		CollectionUtils.getCollectionMusicList(mContext,likeMusic);
 	}
 
@@ -327,13 +339,14 @@ public class MusicPresenter implements Contarct.mainPresenter{
 
 	@Override
 	public void setChangeWall() {
-		if(wallpoition==6){
+		if(wallpoition>6){
 			wallpoition=0;
 		}else{
 			wallpoition+=1;
 		}
+		Log.i("md", "wallpoition: "+wallpoition);
 		SharedPreferencesUtils.setIntPref(mContext, "id", "id", wallpoition);
-		mainView.setWallPaper(wallpoition);
+		mainView.showWallPaper(wallpoition);
 	}
 
 	@Override
@@ -360,7 +373,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		}
 	}
 
-    private boolean showFreqView=true;
 	@Override
 	public void setChangeLrcorVis() {
 		showFreqView=!showFreqView;
@@ -402,12 +414,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
         mTW.toRPlaylist(mTW.mCurrentIndex);
 	}
 
-    private ArrayList<MusicName> likeMusic = new ArrayList<MusicName>();
-    private ArrayList<Record> mSDRecordArrayList = new ArrayList<Record>();
-    private ArrayList<Record> mUSBRecordArrayList = new ArrayList<Record>();
-	private boolean isCollectMusic = false;
-	private ListView mList;
-	
 	@Override
 	public void setCollect() {
 		if(!TextUtils.isEmpty(mTW.mCurrentAPath)){ //判断路径是否为空
@@ -415,28 +421,22 @@ public class MusicPresenter implements Contarct.mainPresenter{
 				if(((ImageView) mAdapter.ivLove) != null){
 					((ImageView) mAdapter.ivLove).getDrawable().setLevel(0);
 				}
+				mainView.showCollect(false);
 				CollectionUtils.removeMusicFromCollectionList(mTW.mCurrentAPath,likeMusic);
 			} else {
 				if(((ImageView) mAdapter.ivLove) != null){
 					((ImageView) mAdapter.ivLove).getDrawable().setLevel(1);
 				}
+				mainView.showCollect(true);
 				if(!CollectionUtils.itBeenCollected(mContext,  mTW.mCurrentAPath, likeMusic)){
 					CollectionUtils.addMusicToCollectionList(new MusicName(mService.getFileName(), mTW.mCurrentAPath), likeMusic);
 				}
-			}
-			if(isCollectMusic){
-				mList.requestLayout();
 			}
 			mAdapter.notifyDataSetChanged();
 			CollectionUtils.saveCollectionMusicList(mContext,likeMusic);
 		}
 	}
-	private MyListAdapter mAdapter;
-    private Record mSDRecord;
-    private Record mUSBRecord;
-    private Record mMediaRecord;
-    private Record mLikeRecord = new Record("LIKE", 4, 0);
-    private Record mCList;
+
     private class MyListAdapter extends BaseAdapter {
 		public MyListAdapter(Context context) {
 			mContext = context;
@@ -444,11 +444,9 @@ public class MusicPresenter implements Contarct.mainPresenter{
 
 		@Override
 		public int getCount() {
-
 			if(isCollectMusic){
 				return likeMusic.size();
 			}
-
 			if(mCList == null) {
 				return 0;
 			} else if(mCList.mLevel == 0) {
@@ -591,7 +589,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
 					path = mCList.mLName[position - 1].mPath;
 				}
 				vh.line.setText(name);
-				Log.i("md", "name: "+name);
 				if((mCList.mLevel != 0) && (position == 0)) {
 //					((RelativeLayout)v).getBackground().setLevel(1);
 					vh.play_indicator.getDrawable().setLevel(2);
@@ -651,7 +648,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
 					final String nameString=name;
 					final String pathString=path;
 					final boolean isEmpty=TextUtils.isEmpty(name);
-					//                    Log.i("gss", "pathString:"+pathString);
 
 					if (CollectionUtils.itBeenCollected(mContext,pathString,likeMusic)){
 						vh.ivLove.getDrawable().setLevel(1);
@@ -676,7 +672,7 @@ public class MusicPresenter implements Contarct.mainPresenter{
 										CollectionUtils.addMusicToCollectionList(new MusicName(nameString, pathString), likeMusic);
 									}
 									if(isCollectMusic){
-										mList.requestLayout();
+//										mList.requestLayout();
 									}
 									mAdapter.notifyDataSetChanged();
 									CollectionUtils.saveCollectionMusicList(mContext,likeMusic);
@@ -702,7 +698,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
     }
     
     private void collectList() {
-		// TODO Auto-generated method stub
 		MusicName[] mLName = new MusicName[likeMusic.size()];
 		for(int i = 0; i < likeMusic.size();i++){
 			mLName[i] = new MusicName(likeMusic.get(i).mName,likeMusic.get(i).mPath);
@@ -714,55 +709,93 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		mAdapter.notifyDataSetChanged();
     }
 
+    int onclick = -1;
+    public boolean isContinuousClick(int i){
+    	if (onclick == i) {
+			return true;
+		}else{
+			onclick = i;
+			return false;
+		}
+    }
+    
 	@Override
 	public void openPlayList() {
+		isContinuousClick(0);
 		mainView.showListDrawer(0);
 		mCList = mTW.mPlaylistRecord;
 		mCList.mIndex = 0;
 		mAdapter.notifyDataSetChanged();
+    	isCollectMusic = false;
 	}
-    private int mSDRecordLevel = 0;
-    private int mUSBRecordLevel = 0;
+	
 	@Override
 	public void openSDList() {
 		mainView.showListDrawer(1);
-		if(mSDRecordArrayList.size() > 0) {
-			if(mSDRecordLevel >= mSDRecordArrayList.size()) {
-				mSDRecordLevel = 0;
+		if (isContinuousClick(1)) {
+			if(mSDRecordArrayList.size() > 0) {
+				if(++mTW.mSDRecordLevel >= mSDRecordArrayList.size()) {
+					mTW.mSDRecordLevel = 0;
+				}
+				mCList = mSDRecordArrayList.get(mTW.mSDRecordLevel);
+			} else {
+				mCList = mSDRecord;
 			}
-			mCList = mSDRecordArrayList.get(mSDRecordLevel);
-		} else {
-			mCList = mSDRecord;
+		}else{
+			if(mSDRecordArrayList.size() > 0) {
+				if(mTW.mSDRecordLevel >= mSDRecordArrayList.size()) {
+					mTW.mSDRecordLevel = 0;
+				}
+				mCList = mSDRecordArrayList.get(mTW.mSDRecordLevel);
+			} else {
+				mCList = mSDRecord;
+			}
 		}
 		mAdapter.notifyDataSetChanged();
+    	isCollectMusic = false;
 	}
 	@Override
 	public void openUSBList() {
 		mainView.showListDrawer(2);
-		if(mUSBRecordArrayList.size() > 0) {
-			if(mUSBRecordLevel >= mUSBRecordArrayList.size()) {
-				mUSBRecordLevel = 0;
+		if (isContinuousClick(2)) {
+			if(mUSBRecordArrayList.size() > 0) {
+				if(++mTW.mUSBRecordLevel >= mUSBRecordArrayList.size()) {
+					mTW.mUSBRecordLevel = 0;
+				}
+				mCList = mUSBRecordArrayList.get(mTW.mUSBRecordLevel);
+			} else {
+				mCList = mUSBRecord;
 			}
-			mCList = mUSBRecordArrayList.get(mUSBRecordLevel);
-		} else {
-			mCList = mUSBRecord;
+		}else{
+			if(mUSBRecordArrayList.size() > 0) {
+				if(mTW.mUSBRecordLevel >= mUSBRecordArrayList.size()) {
+					mTW.mUSBRecordLevel = 0;
+				}
+				mCList = mUSBRecordArrayList.get(mTW.mUSBRecordLevel);
+			} else {
+				mCList = mUSBRecord;
+			}
 		}
+		Log.i("md", "mTW.mUSBRecordLevel: "+mTW.mUSBRecordLevel);
 		mAdapter.notifyDataSetChanged();
+    	isCollectMusic = false;
 	}
 	@Override
 	public void openiNandList() {
+		isContinuousClick(3);
 		mainView.showListDrawer(3);
 		mCList = mMediaRecord;
 		mCList.mIndex = 3;
-//		r.mLevel = 0;
 		mAdapter.notifyDataSetChanged();
+    	isCollectMusic = false;
 	}
 
 	@Override
 	public void openCollectList() {
+		isContinuousClick(4);
 		mainView.showListDrawer(4);
 		collectList();
-		mAdapter.notifyDataSetChanged();
+		isCollectMusic = true;
 	}
 
 	@Override
@@ -823,7 +856,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
 						mTW.toRPlaylist(position);
 						mTW.mCurrentPath = path;
 						current(0, false);
-//						showPlayingOrPlayList();
 						mService.mMediaPlayer.setOnErrorListener(new OnErrorListener() {
                             @Override
                             public boolean onError(MediaPlayer mp, int what, int extra) {
@@ -848,10 +880,9 @@ public class MusicPresenter implements Contarct.mainPresenter{
 					}
 				}
 			}
-			mList.requestLayout();
 			mAdapter.notifyDataSetChanged();
 		} catch (Exception e) {
-			// TODO: handle exception
+			Log.i(TAG, ""+e.toString());
 		}
 	}
 	
@@ -927,6 +958,7 @@ public class MusicPresenter implements Contarct.mainPresenter{
 	    	}
     	}
     }
+    
     private void loadVolume(Record record, String volume) {
     	if ((record != null) && (volume != null)) {
      		try {
@@ -1014,15 +1046,15 @@ public class MusicPresenter implements Contarct.mainPresenter{
 				String s = t.mName;
 				r.clearRecord();
 				mSDRecordArrayList.remove(r);
-				if(mSDRecordLevel >= mSDRecordArrayList.size()){
-					mSDRecordLevel = mSDRecordArrayList.size() - 1;
-					if(mSDRecordLevel < 0) {
-						mSDRecordLevel = 0;
+				if(mTW.mSDRecordLevel >= mSDRecordArrayList.size()){
+					mTW.mSDRecordLevel = mSDRecordArrayList.size() - 1;
+					if(mTW.mSDRecordLevel < 0) {
+						mTW.mSDRecordLevel = 0;
 					}
 				}
 				if(path.equals(s)) {
 	    			if(mSDRecordArrayList.size() > 0) {
-	    				mCList = mSDRecordArrayList.get(mSDRecordLevel);
+	    				mCList = mSDRecordArrayList.get(mTW.mSDRecordLevel);
 	    			} else {
 	        			mCList = mSDRecord;
 	    			}
@@ -1042,15 +1074,15 @@ public class MusicPresenter implements Contarct.mainPresenter{
 				String s = t.mName;
 				r.clearRecord();
 				mUSBRecordArrayList.remove(r);
-				if(mUSBRecordLevel >= mUSBRecordArrayList.size()){
-					mUSBRecordLevel = mUSBRecordArrayList.size() - 1;
-					if(mUSBRecordLevel < 0) {
-						mUSBRecordLevel = 0;
+				if(mTW.mUSBRecordLevel >= mUSBRecordArrayList.size()){
+					mTW.mUSBRecordLevel = mUSBRecordArrayList.size() - 1;
+					if(mTW.mUSBRecordLevel < 0) {
+						mTW.mUSBRecordLevel = 0;
 					}
 				}
 				if(path.equals(s)) {
 	    			if(mUSBRecordArrayList.size() > 0) {
-	    				mCList = mUSBRecordArrayList.get(mUSBRecordLevel);
+	    				mCList = mUSBRecordArrayList.get(mTW.mUSBRecordLevel);
 	    			} else {
 	        			mCList = mUSBRecord;
 	    			}
@@ -1060,7 +1092,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		}
     }
     
-    private final String ACTION_UPDATE_ALL = "com.gss.widget.UPDATE_ALL";
 	private void showMusicInfo() {
 		int MusicType = mService.isPlaying() ? 1 : 0;
 		Intent intent = new Intent();
@@ -1084,11 +1115,11 @@ public class MusicPresenter implements Contarct.mainPresenter{
         	}
         }
 		mAdapter.notifyDataSetChanged();
-		mList.smoothScrollToPosition(mTW.mCurrentIndex + mCList.mLevel);
 		updateCollectButtonState();
+		mainView.showSmoothScrollToPosition(mTW.mCurrentIndex + mCList.mLevel);
         mainView.showPlaypause(mService.isPlaying());
-		mainView.setID3((String)titleName, (String)artistName, (String)albumName);
-		mainView.addAlbumArt(mService.getAlbumArt());
+		mainView.showID3((String)titleName, (String)artistName, (String)albumName);
+		mainView.showAlbumArt(mService.getAlbumArt());
 	}
 	
 	private void updateCollectButtonState(){

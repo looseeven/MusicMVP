@@ -94,16 +94,16 @@ public class BaseVisualizerView extends View implements Visualizer.OnDataCapture
 	@Override  
 	public void onDraw(Canvas canvas) {  
 		//做渐变频谱
-//		Shader mShader = new LinearGradient(0, 0, 0, (MusicActivity.fx_height)/2,
-//				new int[] {
-//			Color.rgb(21, 53, 174), 
-//			Color.rgb(61, 96, 198),
-//			Color.rgb(114, 156, 230),
-//			Color.rgb(151, 196, 251)
-//		},
-//		null
-//		, Shader.TileMode.MIRROR);
-//		mPaint.setShader(mShader);// 用Shader中定义定义的颜色来话
+		Shader mShader = new LinearGradient(0, 0, 0, (MusicActivity.fx_height)/2,
+				new int[] {
+			Color.rgb(21, 53, 174), 
+			Color.rgb(61, 96, 198),
+			Color.rgb(114, 156, 230),
+			Color.rgb(151, 196, 251)
+		},
+		null
+		, Shader.TileMode.MIRROR);
+		mPaint.setShader(mShader);// 用Shader中定义定义的颜色来话
 		
       //频率快
 //      for (int i = 0; i < CYLINDER_NUM; i++) { //绘制32个能量柱

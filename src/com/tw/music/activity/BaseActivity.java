@@ -2,7 +2,10 @@ package com.tw.music.activity;
 
 import android.app.Activity;
 import android.os.Bundle;
-
+/*
+ * @author xy by 20190611
+ *	Activity abstract class
+ */
 public abstract class BaseActivity extends Activity{
 
 	@Override

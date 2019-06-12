@@ -17,12 +17,15 @@
 package com.tw.music.presenter;
 
 import android.content.Context;
-
+/**
+ * @author xy by 20190611
+ *	Put some common interfaces
+ */
 public interface BasePresenter<T> {
     void onstart(Context mContext);//启动
     void setSeekBar(int progress);//设置进度
 	void setPlayPlause();//设置播放状态
-	void setDestroy();//销毁
-	void setPause();//销毁
-	void setResume();//销毁
+	void ondestroy();//销毁
+	void onpause();//销毁
+	void onresume();//销毁
 }

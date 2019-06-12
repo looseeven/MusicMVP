@@ -104,13 +104,13 @@ public class PreviewActivity extends BaseActivity implements Contarct.View{
 		mSeekBar.setVisibility(View.VISIBLE);
 	}
 	@Override
-	public void setID3(String title, String artist, String album) {
+	public void showID3(String title, String artist, String album) {
 		mTitle.setText(title);
 		mArtist.setText(artist);
 	}
 
 	@Override
-	public void setSeekBar(int totaltime, int currenttime) {
+	public void showSeekBar(int totaltime, int currenttime) {
 		mSeekBar.setMax(totaltime);
 		mSeekBar.setProgress(currenttime);
 	}
@@ -127,7 +127,7 @@ public class PreviewActivity extends BaseActivity implements Contarct.View{
 
 	@Override
 	public void ondestroy() {
-		mPresenter.setDestroy();
+		mPresenter.ondestroy();
 	}
 
 	@Override

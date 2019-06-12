@@ -16,6 +16,10 @@
 
 package com.tw.music.contarct;
 
+/**
+ * @author xy by 20190611
+ *	Put some common interfaces
+ */
 public interface BaseView<T> {
     void setPresenter(T presenter);
     /**
@@ -23,12 +27,12 @@ public interface BaseView<T> {
 	 * @param artist 专辑
 	 * @param album 歌手
 	 */
-	void setID3(String title,String artist,String album);
+	void showID3(String title,String artist,String album);
 	/**
 	 * @param totaltime 总长度
 	 * @param currenttime 实时进度
 	 */
-	void setSeekBar(int totaltime,int currenttime);
+	void showSeekBar(int totaltime,int currenttime);
 	/**
 	 * @param totaltime 总长度
 	 * @param currenttime 实时进度

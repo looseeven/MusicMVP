@@ -108,7 +108,7 @@
 		        android:id="@+id/progress"
 		        style="?android:attr/progressBarStyleHorizontal"
 		        android:layout_width="194dip"
-		        android:layout_height="20dip"
+		        android:layout_height="10dip"
 		        android:paddingLeft="10dip"
 		        android:paddingRight="10dip"
 		        android:progressDrawable="@drawable/seek_bar_style" />

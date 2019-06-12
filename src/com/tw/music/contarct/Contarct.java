@@ -5,8 +5,14 @@ import com.tw.music.utils.visualizer.BaseVisualizerView;
 
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.provider.ContactsContract.Data;
 import android.view.View;
-
+import android.widget.Adapter;
+import android.widget.BaseAdapter;
+/*
+ * @author xy by 20190611
+ *	Put different module specific interfaces and methods
+ */
 public interface Contarct {
     interface View extends BaseView<prePresenter> {
     	/**
@@ -27,7 +33,7 @@ public interface Contarct {
     	/**
     	 * 设置壁纸
     	 */
-    	void setWallPaper(int position);
+    	void showWallPaper(int position);
     	/**
     	 * 显示歌词/音谱
     	 * true 歌词
@@ -52,11 +58,19 @@ public interface Contarct {
     	/**
     	 * 加载频谱
     	 */
-    	void addVisualizerView(BaseVisualizerView mBaseVisualizerView);
+    	void showVisualizerView(BaseVisualizerView mBaseVisualizerView);
     	/**
     	 * 加载专辑图片
     	 */
-    	void addAlbumArt(Bitmap bm);
+    	void showAlbumArt(Bitmap bm);
+    	/**
+    	 * 更新数据
+    	 */
+    	void updateAdapterData(BaseAdapter adapter);
+    	/**
+    	 * 列表位置
+    	 */
+    	void showSmoothScrollToPosition(int position);
     }
     interface mainPresenter extends BasePresenter {
     	/**
@@ -113,10 +127,7 @@ public interface Contarct {
 		void openUSBList();
 		
 		/**
-		 * 
-		 * @param view
 		 * @param position
-		 * @param id
 		 */
 		void setListitemlistener(int position);
     }

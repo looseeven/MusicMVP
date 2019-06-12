@@ -26,7 +26,7 @@
 
                 <LinearLayout
                     android:layout_width="290dip"
-                    android:layout_height="330dip"
+                    android:layout_height="360dip"
                     android:layout_centerVertical="true"
                     android:layout_marginLeft="60dip"
                     android:layout_marginTop="25dip"
@@ -34,10 +34,10 @@
 
                     <ImageView
                         android:id="@+id/iv_album"
-                        android:layout_width="200dp"
-                        android:layout_height="215dp"
-                        android:layout_marginLeft="15dip"
-                        android:layout_marginTop="60dip"
+                        android:layout_width="201dp"
+                        android:layout_height="235dp"
+                        android:layout_marginLeft="14dip"
+                        android:layout_marginTop="30dip"
                         android:src="@drawable/album123" />
                 </LinearLayout>
 
@@ -165,19 +165,20 @@
 
                              <ImageView
                                 android:id="@+id/iv_fx"
-                                android:layout_width="50dp"
-                                android:layout_height="25dp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
                                 android:layout_gravity="center"
                                 android:onClick="onClick"
                         		android:src="@drawable/selector_btn_rt" />
 
                             <ImageView
                                 android:id="@+id/iv_lrc"
-                                android:layout_width="50dp"
-                                android:layout_height="25dp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
                                 android:layout_gravity="center"
                                 android:onClick="onClick"
                                 android:layout_marginLeft="6dp"
+                                android:visibility="gone"
                         		android:src="@drawable/selector_btn_lrc"  />
                         </LinearLayout>
 
@@ -191,8 +192,8 @@
                                 android:id="@+id/ll_fx"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
-                                android:paddingLeft="100dp"
-                                android:paddingRight="110dp"
+                                android:paddingLeft="10dp"
+                                android:paddingRight="50dp"
                                 android:orientation="vertical" >
                             </LinearLayout>
 
@@ -273,6 +274,7 @@
                     android:clickable="true"
                     android:onClick="onClick"
                     android:scaleType="center"
+                    android:src="@drawable/home"
                     android:visibility="gone" />
 
                 <ImageView
@@ -352,6 +354,7 @@
                     android:clickable="true"
                     android:onClick="onClick"
                     android:scaleType="center"
+                    android:src="@drawable/back"
                     android:visibility="gone" />
             </LinearLayout>
         </RelativeLayout>
@@ -374,21 +377,18 @@
 
             <TextView
                 android:id="@+id/playlist"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@drawable/selector_btn_bg"
                 android:clickable="true"
                 android:drawableTop="@drawable/selector_btn_play_list"
                 android:gravity="center_horizontal"
                 android:onClick="onClick"
-                android:paddingTop="-10dp"
-                android:text="@string/playlist"
-                android:textColor="#ffffff"
-                android:textSize="18dip" />
+                android:layout_weight="1" />
 
             <TextView
                 android:id="@+id/sd"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="-2dip"
                 android:background="@drawable/selector_btn_bg"
@@ -396,13 +396,11 @@
                 android:drawableTop="@drawable/selector_btn_sd"
                 android:gravity="center_horizontal"
                 android:onClick="onClick"
-                android:text="@string/sd"
-                android:textColor="#ffffff"
-                android:textSize="18dip" />
+                android:layout_weight="1" />
 
             <TextView
                 android:id="@+id/usb"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="-2dip"
                 android:background="@drawable/selector_btn_bg"
@@ -410,13 +408,11 @@
                 android:drawableTop="@drawable/selector_btn_usb"
                 android:gravity="center_horizontal"
                 android:onClick="onClick"
-                android:text="@string/usb"
-                android:textColor="#ffffff"
-                android:textSize="18dip" />
+                android:layout_weight="1" />
 
             <TextView
                 android:id="@+id/inand"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="-2dip"
                 android:background="@drawable/selector_btn_bg"
@@ -424,13 +420,11 @@
                 android:drawableTop="@drawable/selector_btn_wenjian"
                 android:gravity="center_horizontal"
                 android:onClick="onClick"
-                android:text="@string/media"
-                android:textColor="#ffffff"
-                android:textSize="18dip" />
+                android:layout_weight="1" />
 
             <TextView
                 android:id="@+id/collect"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="-2dip"
                 android:background="@drawable/selector_btn_bg"
@@ -438,9 +432,7 @@
                 android:drawableTop="@drawable/selector_btn_love"
                 android:gravity="center_horizontal"
                 android:onClick="onClick"
-                android:text="@string/love"
-                android:textColor="#ffffff"
-                android:textSize="18dip" />
+                android:layout_weight="1" />
         </LinearLayout>
 
         <LinearLayout
@@ -453,7 +445,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="430dip"
                 android:cacheColorHint="@android:color/transparent"
-                android:dividerHeight="2dip"
+                android:divider="@drawable/xian"
+                android:dividerHeight="1dip"
                 android:fadingEdge="none"
                 android:listSelector="@android:color/transparent"
                 android:paddingBottom="4dip"
@@ -466,7 +459,7 @@
                 android:id="@+id/ll_back_play"
                 android:layout_width="match_parent"
                 android:layout_height="115dip"
-                android:background="@color/text_white"
+                android:background="@drawable/bg_b1"
                 android:clickable="true"
                 android:onClick="onClick"
                 android:orientation="horizontal" >
@@ -501,7 +494,7 @@
                         android:layout_height="wrap_content"
                         android:gravity="left|center_vertical"
                         android:singleLine="true"
-                        android:textColor="#000000"
+                        android:textColor="#ffffff"
                         android:textSize="28dp" />
 
                     <TextView
@@ -511,7 +504,7 @@
                         android:layout_marginTop="10dip"
                         android:includeFontPadding="false"
                         android:singleLine="true"
-                        android:textColor="#000000"
+                        android:textColor="#ffffff"
                         android:textSize="22dp" />
                 </LinearLayout>
 

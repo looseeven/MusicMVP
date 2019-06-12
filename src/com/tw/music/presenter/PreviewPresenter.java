@@ -122,7 +122,7 @@ public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListene
 				} else {
 					Log.w(TAG, "empty cursor");
 				}
-				PreView.setID3(title, artist, album);
+				PreView.showID3(title, artist, album);
 				if (cursor != null) {
 					cursor.close();
 				}
@@ -182,7 +182,7 @@ public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListene
 
 	private void showPostPrepareUI() {
 		mDuration = mPlayer.getDuration();
-		PreView.setSeekBar(mDuration, mPlayer.getCurrentPosition());
+		PreView.showSeekBar(mDuration, mPlayer.getCurrentPosition());
 		mAudioManager.requestAudioFocus(mAudioFocusListener, AudioManager.STREAM_MUSIC,
 				AudioManager.AUDIOFOCUS_GAIN);
 		mProgressRefresher.postDelayed(new ProgressRefresher(), 1000);
@@ -236,7 +236,7 @@ public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListene
 		public void run() {
 			mDuration = mPlayer.getDuration();
 			if (mPlayer != null &&  mDuration != 0) {
-				PreView.setSeekBar(mDuration, mPlayer.getCurrentPosition());
+				PreView.showSeekBar(mDuration, mPlayer.getCurrentPosition());
 			}
 			PreView.showPlaypause(mPlayer.isPlaying());
 			mProgressRefresher.removeCallbacksAndMessages(null);
@@ -278,18 +278,18 @@ public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListene
 	 }
 
 	@Override
-	public void setDestroy() {
+	public void ondestroy() {
 		isOnDestroy = false;
 		stopPlayback();
 	}
 
 	@Override
-	public void setPause() {
+	public void onpause() {
 		
 	}
 
 	@Override
-	public void setResume() {
+	public void onresume() {
 		
 	}
 }

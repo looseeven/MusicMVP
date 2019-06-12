@@ -5,15 +5,21 @@ import java.util.Locale;
 import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
 import android.media.audiofx.Visualizer;
+import android.os.Handler;
+import android.os.Message;
+import android.provider.ContactsContract.Data;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
@@ -36,13 +42,15 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	private CircleImageView mAlbumArt;
     private ImageView mAlbumArt2;
     private SeekBar mProgress;
-	
+    private LinearLayout ll_fx; //频谱
+	public static LrcView lrc_view; //歌词
+    public static int fx_height; //获取频谱界面高度
+    
 	@Override
 	public void initView() {
 		getWindow().setFormat(PixelFormat.TRANSLUCENT);
 		setContentView(R.layout.music);
 		new MusicPresenter(this);
-		mPresenter.onstart(MusicActivity.this);
 	}
 
 	@Override
@@ -56,8 +64,15 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
         mAlbumArt = (CircleImageView)findViewById(R.id.albumart);
         mProgress = ((SeekBar)findViewById(R.id.progress));
         mProgress.setOnSeekBarChangeListener(seekbarlistener);
+		mPresenter.onstart(MusicActivity.this);
+		ll_fx.getViewTreeObserver().addOnGlobalLayoutListener(new OnGlobalLayoutListener() { 
+			@Override   
+		    public void onGlobalLayout() { 
+		    	ll_fx.getViewTreeObserver().removeGlobalOnLayoutListener(this); 
+		    	fx_height = ll_fx.getHeight();
+		    }   
+		});  
 	}
-
 	OnSeekBarChangeListener seekbarlistener = new OnSeekBarChangeListener() {
 		
 		@Override
@@ -150,7 +165,7 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	}
 
 	@Override
-	public void setID3(String title, String artist, String album) {
+	public void showID3(String title, String artist, String album) {
 		((TextView)findViewById(R.id.song)).setText(title);
 		((TextView)findViewById(R.id.artist)).setText(artist);
 		((TextView)findViewById(R.id.album)).setText(album);
@@ -159,7 +174,7 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	}
 
 	@Override
-	public void setSeekBar(int totaltime, int currenttime) {
+	public void showSeekBar(int totaltime, int currenttime) {
 		((ProgressBar)findViewById(R.id.progress)).setMax(totaltime/1000);
 		((ProgressBar)findViewById(R.id.progress)).setProgress(currenttime/1000);
 		totaltime = totaltime / 1000;
@@ -207,7 +222,7 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 
 	int[] wallps = new int[]{R.drawable.bg,R.drawable.bg0,R.drawable.bg1,R.drawable.bg2,R.drawable.bg3,R.drawable.bg5,R.drawable.bg6}; 
 	@Override
-	public void setWallPaper(int position) {
+	public void showWallPaper(int position) {
 		switch (position) {
 		case 0:
 			findViewById(R.id.drag_layer).setBackgroundResource(R.drawable.bg);
@@ -237,17 +252,17 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	}
 	@Override
 	public void ondestroy() {
-		mPresenter.setDestroy();
+		mPresenter.ondestroy();
 	}
 
 	@Override
 	public void onresume() {
-		mPresenter.setResume();
+		mPresenter.onresume();
 	}
 
 	@Override
 	public void onpause() {
-		mPresenter.setPause();
+		mPresenter.onpause();
 	}
 
 	@Override
@@ -297,17 +312,13 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 		}
 	}
 	
-
-    private LinearLayout ll_fx;
-	public static LrcView lrc_view;
-
 	@Override
-	public void addVisualizerView(BaseVisualizerView mBaseVisualizerView) {
+	public void showVisualizerView(BaseVisualizerView mBaseVisualizerView) {
 		ll_fx.addView(mBaseVisualizerView);
 	}
 
 	@Override
-	public void addAlbumArt(Bitmap bm) {
+	public void showAlbumArt(Bitmap bm) {
 		if(bm == null) {
 			mAlbumArt.setImageResource(R.drawable.album_l);
 			mAlbumArt2.setImageResource(R.drawable.album123);
@@ -315,5 +326,15 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 			mAlbumArt.setImageBitmap(bm);
 			mAlbumArt2.setImageBitmap(bm);
 		}
+	}
+
+	@Override
+	public void updateAdapterData(BaseAdapter adapter) {
+		mList.setAdapter(adapter);
+	}
+
+	@Override
+	public void showSmoothScrollToPosition(int position) {
+		mList.smoothScrollToPosition(position);
 	}
 }
