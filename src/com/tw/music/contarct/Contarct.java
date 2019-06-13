@@ -1,7 +1,7 @@
 package com.tw.music.contarct;
 
 import com.tw.music.presenter.BasePresenter;
-import com.tw.music.utils.visualizer.BaseVisualizerView;
+import com.tw.music.visualizer.BaseVisualizerView;
 
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -45,7 +45,7 @@ public interface Contarct {
     	 * mShuffle  1重复 
     	 * mRepeat 1顺序 2 单曲 3随机
     	 */
-    	void showRepeat(int Repeat,int mShuffle);
+    	void showRepeat(int Repeat, int mShuffle);
     	/**
     	 * 显示是否收藏
     	 */
@@ -130,5 +130,9 @@ public interface Contarct {
 		 * @param position
 		 */
 		void setListitemlistener(int position);
+		/**
+		 * 加载频谱
+		 */
+		void setVisualizerFxAndUi();
     }
 }

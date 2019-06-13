@@ -197,7 +197,7 @@
                                 android:orientation="vertical" >
                             </LinearLayout>
 
-                            <com.tw.music.utils.lrc.LrcView
+                            <com.tw.music.lrc.LrcView
                                 android:id="@+id/lrc_view"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"

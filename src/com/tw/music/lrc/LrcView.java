@@ -1,4 +1,4 @@
-package com.tw.music.utils.lrc;
+package com.tw.music.lrc;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -10,13 +10,14 @@ import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
-import java.util.List;
 import com.tw.music.R;
+import java.util.List;
 
 public class LrcView extends View {
 	
-    int mLrvItemHight = 50; //设置歌词的间距
-    int mLrvTextSize = 19; //设置歌词的字符大小
+    int mLrvItemHight = 57; //设置歌词的间距
+    int mLrvTextSize = 16; //设置歌词的字符大小
+    int mLrvTextSize2 = 24; //设置歌词2的字符大小
     int mLrvColor = R.color.text_white; //设置歌词的默认颜色
     int mLrvPlayerColor = R.color.text_green; //设置歌词的进度颜色
     private List<LrcBean> list;
@@ -81,7 +82,7 @@ public class LrcView extends View {
         hPaint = new Paint();
         hPaint.setAntiAlias(true);
         hPaint.setColor(highLineColor);
-        hPaint.setTextSize(setTextSize(mLrvTextSize));
+        hPaint.setTextSize(setTextSize(mLrvTextSize2));
         hPaint.setTextAlign(Paint.Align.CENTER);
        
     }

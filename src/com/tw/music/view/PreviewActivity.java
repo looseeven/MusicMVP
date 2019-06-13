@@ -1,8 +1,10 @@
 package com.tw.music.view;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
@@ -14,19 +16,20 @@ import com.tw.music.R;
 import com.tw.music.activity.BaseActivity;
 import com.tw.music.contarct.Contarct;
 import com.tw.music.contarct.Contarct.prePresenter;
+import com.tw.music.lrc.LrcView;
 import com.tw.music.presenter.PreviewPresenter;
 
 public class PreviewActivity extends BaseActivity implements Contarct.View{
 	private static final String TAG = "PreviewActivity";
 
 	public static Uri mUri;
-	private Contarct.prePresenter mPresenter;
+	private prePresenter mPresenter;
 	private TextView mTitle; //歌曲
 	private TextView mArtist; //专辑
 	private SeekBar mSeekBar; //播放进度条
-	private ProgressBar pb; //加载进度条
 	private TextView mLoadingText; //提示信息
 	private boolean isPlayPause = false;
+	public static LrcView lrc_view; //歌词
 	
 	@Override
 	public void initView() {
@@ -48,8 +51,8 @@ public class PreviewActivity extends BaseActivity implements Contarct.View{
 		mArtist = (TextView) findViewById(R.id.line2);
 		mSeekBar = (SeekBar) findViewById(R.id.progress);
 		mSeekBar.setOnSeekBarChangeListener(mSeekListener);
-		pb = (ProgressBar) findViewById(R.id.spinner);
 		mLoadingText = (TextView) findViewById(R.id.loading);
+		lrc_view = (LrcView) findViewById(R.id.lrc_view);
 	}
 
 	@Override
@@ -98,9 +101,6 @@ public class PreviewActivity extends BaseActivity implements Contarct.View{
 
 	@Override
 	public void onPrepared() {
-		pb.setVisibility(View.GONE);
-		View v = findViewById(R.id.titleandbuttons);
-		v.setVisibility(View.VISIBLE);
 		mSeekBar.setVisibility(View.VISIBLE);
 	}
 	@Override

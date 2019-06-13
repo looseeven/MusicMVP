@@ -28,7 +28,7 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.tw.music.utils.lrc.LrcTranscoding;
+import com.tw.music.lrc.LrcTranscoding;
 import com.tw.music.view.MusicWidgetProvider;
 
 public class MusicService extends Service {
@@ -353,7 +353,11 @@ public class MusicService extends Service {
 	}
 
 	public boolean isPlaying() {
-		return mMediaPlayer.isPlaying();
+		if (mMediaPlayer != null){
+			return mMediaPlayer.isPlaying();
+		}else {
+			return false;
+		}
 	}
 
 	public void stop() {
@@ -641,7 +645,6 @@ public class MusicService extends Service {
 				bw.write('\n');
 				bw.flush();
 			} catch (Exception e) {
-				Log.i("md", "save Exception File delete");
 				new File("/data/tw/music").delete();
 			} finally {
 				if(bw != null) {

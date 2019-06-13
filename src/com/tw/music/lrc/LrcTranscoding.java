@@ -1,4 +1,4 @@
-package com.tw.music.utils.lrc;
+package com.tw.music.lrc;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import android.content.pm.PackageManager;
 import android.util.Log;
 
 public class LrcTranscoding {
@@ -59,6 +60,7 @@ public class LrcTranscoding {
 			}
 		}catch(Exception e){
 			e.printStackTrace();
+			Log.i("md","e  "+e.toString());
 		}finally{
 			if(fis!=null){
 				try{
