@@ -25,8 +25,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -85,50 +83,49 @@ public class MusicPresenter implements Contarct.mainPresenter{
 	public void onstart(final Context mContext) {
 		mTW = TWMusic.open();
 		this.mContext = mContext;
+		fullScreen((Activity) mContext);
+		initRecord();
+		setIndex(mTW.mCurrentPath);
+		mAdapter = new MyListAdapter(mContext);
+		mTW.requestService(TWMusic.ACTIVITY_RUSEME);
+		mContext.bindService(new Intent(mContext, MusicService.class), mConnection, mContext.BIND_AUTO_CREATE);
+		if((mService != null) && !mService.isPlaying()) {
+			mService.start();
+			mService.seekTo(mTW.mCurrentPos);
+			mService.duck(false);
+		}
+		if (mTW!=null) {
+			mainView.showRepeat(mTW.mRepeat, 0);
+		}
+		CollectionUtils.getCollectionMusicList(mContext,likeMusic);
+		showFreqView = SharedPreferencesUtils.getBooleanPref(mContext, "music","showFreqView");
+		wallpoition = SharedPreferencesUtils.getIntPref(mContext, "id", "id");
+		//				if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+		//					int i0 = ContextCompat.checkSelfPermission(mContext,permissions[0]);
+		//					int i1 = ContextCompat.checkSelfPermission(mContext,permissions[1]);
+		//					if(i1 != PackageManager.PERMISSION_GRANTED || i0 != PackageManager.PERMISSION_GRANTED){
+		//						startPermission();
+		//					}
+		//					if(i1 == PackageManager.PERMISSION_GRANTED){
+		//						setVisualizerFxAndUi();
+		//					}
+		//				}
+		mainView.showWallPaper(wallpoition);
+		mainView.showLrcorVis(showFreqView);
+		mainView.showListDrawer(mCList.mIndex);
+		mainView.updateAdapterData(mAdapter);
 		new Thread(new Runnable() {
 			@Override
 			public void run() {
-				fullScreen((Activity) mContext);
-				initRecord();
-				setIndex(mTW.mCurrentPath);
-				mAdapter = new MyListAdapter(mContext);
-				mTW.requestService(TWMusic.ACTIVITY_RUSEME);
-				mainView.showWallPaper(wallpoition);
-				mainView.showLrcorVis(showFreqView);
-				mainView.showListDrawer(mCList.mIndex);
-				mainView.updateAdapterData(mAdapter);
-				mContext.bindService(new Intent(mContext, MusicService.class), mConnection, mContext.BIND_AUTO_CREATE);
-
-				if((mService != null) && !mService.isPlaying()) {
-					mService.start();
-					mService.seekTo(mTW.mCurrentPos);
-					mService.duck(false);
-				}
-				if (mTW!=null) {
-					mainView.showRepeat(mTW.mRepeat, 0);
-				}
-				CollectionUtils.getCollectionMusicList(mContext,likeMusic);
-				showFreqView = SharedPreferencesUtils.getBooleanPref(mContext, "music","showFreqView");
-				wallpoition = SharedPreferencesUtils.getIntPref(mContext, "id", "id");
-				if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
-					int i0 = ContextCompat.checkSelfPermission(mContext,permissions[0]);
-					int i1 = ContextCompat.checkSelfPermission(mContext,permissions[1]);
-					if(i1 != PackageManager.PERMISSION_GRANTED || i0 != PackageManager.PERMISSION_GRANTED){
-						startPermission();
-					}
-					if(i1 == PackageManager.PERMISSION_GRANTED){
-						setVisualizerFxAndUi();
-					}
-				}
 			}
 		}).start();
 	}
 
 	// 开始提交请求权限
-	private void startPermission() {
-		ActivityCompat.requestPermissions((Activity) mContext, permissions, 321);
-		setVisualizerFxAndUi();
-	}
+	//	private void startPermission() {
+	//		ActivityCompat.requestPermissions((Activity) mContext, permissions, 321);
+	//		setVisualizerFxAndUi();
+	//	}
 
 	/**
 	 * 根据播放路径拿到临时播放目录
@@ -276,7 +273,7 @@ public class MusicPresenter implements Contarct.mainPresenter{
 			}
 			mBaseVisualizerView = new BaseVisualizerView(mContext);
 			mBaseVisualizerView.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
-
+			setVisualizerFxAndUi();
 			mHandler.sendEmptyMessage(mTW.NOTIFY_CHANGE);
 		}
 	};
@@ -289,12 +286,12 @@ public class MusicPresenter implements Contarct.mainPresenter{
 			mVisualizer = new Visualizer(mService.getPlayer().getAudioSessionId());
 			mVisualizer.setEnabled(false);
 			mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-			//		mVisualizer.getCaptureSize();//频谱段位
+			//mVisualizer.getCaptureSize();//频谱段位
 			mBaseVisualizerView.setVisualizer(mVisualizer);
 			mVisualizer.setEnabled(true);
 			mainView.showVisualizerView(mBaseVisualizerView);
 		}catch (Exception e){
-			startPermission();
+			//			startPermission();
 		}
 	}
 
@@ -320,6 +317,12 @@ public class MusicPresenter implements Contarct.mainPresenter{
 
 	@Override
 	public void onresume() {
+		mTW.requestService(TWMusic.ACTIVITY_RUSEME);
+		if((mService != null) && !mService.isPlaying()) {
+			mService.start();
+			mService.seekTo(mTW.mCurrentPos);
+			mService.duck(false);
+		}
 	}
 
 	@Override
@@ -379,7 +382,6 @@ public class MusicPresenter implements Contarct.mainPresenter{
 		}else{
 			wallpoition+=1;
 		}
-		Log.i("md", "wallpoition: "+wallpoition);
 		SharedPreferencesUtils.setIntPref(mContext, "id", "id", wallpoition);
 		mainView.showWallPaper(wallpoition);
 	}

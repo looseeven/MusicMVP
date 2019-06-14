@@ -178,8 +178,7 @@
                                 android:layout_gravity="center"
                                 android:onClick="onClick"
                                 android:layout_marginLeft="6dp"
-                                android:visibility="gone"
-                        		android:src="@drawable/selector_btn_lrc"  />
+                                android:visibility="gone" />
                         </LinearLayout>
 
                        <RelativeLayout

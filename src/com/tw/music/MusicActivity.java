@@ -26,7 +26,7 @@ import com.tw.music.presenter.MusicPresenter;
 import com.tw.music.utils.CircleImageView;
 import com.tw.music.visualizer.BaseVisualizerView;
 
-public class MusicActivity extends Activity implements Contarct.mainView{
+public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	private static final String TAG = "MusicActivity";
 	private mainPresenter mPresenter;
 	private boolean isPlayPause = false;
@@ -38,14 +38,7 @@ public class MusicActivity extends Activity implements Contarct.mainView{
 	public static LrcView lrc_view; //歌词
 	public static int fx_height; //获取频谱界面高度
 
-	Handler mHandler = new Handler();
-
 	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		initView();
-	}
-	
 	public void initView() {
 		getWindow().setFormat(PixelFormat.TRANSLUCENT);
 		setContentView(R.layout.music_act);
@@ -69,6 +62,9 @@ public class MusicActivity extends Activity implements Contarct.mainView{
 		mPresenter.onstart(MusicActivity.this);
 	}
 	
+	@Override
+	public void initData() {
+	}
 	OnSeekBarChangeListener seekbarlistener = new OnSeekBarChangeListener() {
 
 		@Override
@@ -226,7 +222,6 @@ public class MusicActivity extends Activity implements Contarct.mainView{
 	@Override
 	public void showLrcorVis(Boolean b) {
 		((ImageView) findViewById(R.id.iv_fx)).getDrawable().setLevel(b?0:1);
-		((ImageView) findViewById(R.id.iv_lrc)).getDrawable().setLevel(b?1:0);
 		if (b) {
 			ll_fx.setVisibility(View.INVISIBLE);
 			lrc_view.setVisibility(View.VISIBLE);
@@ -294,5 +289,21 @@ public class MusicActivity extends Activity implements Contarct.mainView{
 	@Override
 	public void showVisualizerView(BaseVisualizerView mBaseVisualizerView) {
 		ll_fx.addView(mBaseVisualizerView);
+	}
+	
+
+	@Override
+	public void ondestroy() {
+		mPresenter.ondestroy();
+	}
+
+	@Override
+	public void onresume() {
+		mPresenter.onresume();
+	}
+
+	@Override
+	public void onpause() {
+		mPresenter.onpause();
 	}
 }
