@@ -1,14 +1,12 @@
 package com.tw.music;
 
 import java.util.Locale;
-
-import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
-import android.os.Bundle;
-import android.os.Handler;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.view.animation.Animation;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
@@ -27,7 +25,6 @@ import com.tw.music.utils.CircleImageView;
 import com.tw.music.visualizer.BaseVisualizerView;
 
 public class MusicActivity extends BaseActivity implements Contarct.mainView{
-	private static final String TAG = "MusicActivity";
 	private mainPresenter mPresenter;
 	private boolean isPlayPause = false;
 	private ListView mList;
@@ -61,7 +58,7 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 		new MusicPresenter(MusicActivity.this);
 		mPresenter.onstart(MusicActivity.this);
 	}
-	
+
 	@Override
 	public void initData() {
 	}
@@ -78,7 +75,7 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 
 		@Override
 		public void onProgressChanged(SeekBar seekBar, int progress,
-									  boolean fromUser) {
+				boolean fromUser) {
 			if (fromUser) {
 				mPresenter.setSeekBar(progress);
 			}
@@ -89,70 +86,78 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 
 		@Override
 		public void onItemClick(AdapterView<?> parent, View view,
-								int position, long id) {
+				int position, long id) {
 			mPresenter.setListitemlistener(position);
 		}
 	};
 
 	public void onClick(View v){
 		switch (v.getId()) {
-			case R.id.btn_bg:
-				mPresenter.setChangeWall();
-				break;
-			case R.id.eq:
-				mPresenter.openEQ();
-				break;
-			case R.id.home:
-				mPresenter.openHome();
-				break;
-			case R.id.back:
-				finish();
-				break;
-			case R.id.pp2:
-			case R.id.pp:
-				mPresenter.setPlayPlause();
-				break;
-			case R.id.iv_lrc:
-			case R.id.iv_fx:
-				mPresenter.setChangeLrcorVis();
-				break;
-			case R.id.prev2:
-			case R.id.prev:
-				mPresenter.setPrev();
-				break;
-			case R.id.next2:
-			case R.id.next:
-				mPresenter.setNext();
-				break;
-			case R.id.repeat:
-				mPresenter.setRepeat();
-				break;
-			case R.id.play_list:
-				findViewById(R.id.ll_music_list).setVisibility(View.VISIBLE);
-				findViewById(R.id.ll_music_play).setVisibility(View.GONE);
-				break;
-			case R.id.ll_back_play:
-				findViewById(R.id.ll_music_list).setVisibility(View.GONE);
-				findViewById(R.id.ll_music_play).setVisibility(View.VISIBLE);
-				break;
-			case R.id.iv_collect:
-				mPresenter.setCollect();
-				break;
-			case R.id.playlist:
-				mPresenter.openPlayList();
-				break;
-			case R.id.sd:
-				mPresenter.openSDList();
-				break;
-			case R.id.usb:
-				mPresenter.openUSBList();
-				break;
-			case R.id.inand:
-				mPresenter.openiNandList();
-				break;
-			case R.id.collect:
-				mPresenter.openCollectList();
-				break;
+		case R.id.btn_bg:
+			mPresenter.setChangeWall();
+			break;
+		case R.id.eq:
+			mPresenter.openEQ();
+			break;
+		case R.id.home:
+			mPresenter.openHome();
+			break;
+		case R.id.back:
+			finish();
+			break;
+		case R.id.pp2:
+		case R.id.pp:
+			if (isPlayPause) {
+				mAlbumArt.pauseMusic();
+				((ImageView)findViewById(R.id.pp)).getDrawable().setLevel(0);
+				((ImageView)findViewById(R.id.pp2)).getDrawable().setLevel(0);
+			} else {
+				((ImageView)findViewById(R.id.pp)).getDrawable().setLevel(1);
+				((ImageView)findViewById(R.id.pp2)).getDrawable().setLevel(1);
+			}
+			mPresenter.setPlayPlause();
+			break;
+		case R.id.iv_lrc:
+		case R.id.iv_fx:
+			mPresenter.setChangeLrcorVis();
+			break;
+		case R.id.prev2:
+		case R.id.prev:
+			mPresenter.setPrev();
+			break;
+		case R.id.next2:
+		case R.id.next:
+			mPresenter.setNext();
+			break;
+		case R.id.repeat:
+			mPresenter.setRepeat();
+			break;
+		case R.id.play_list:
+			findViewById(R.id.ll_music_list).setVisibility(View.VISIBLE);
+			findViewById(R.id.ll_music_play).setVisibility(View.GONE);
+			break;
+		case R.id.ll_back_play:
+			findViewById(R.id.ll_music_list).setVisibility(View.GONE);
+			findViewById(R.id.ll_music_play).setVisibility(View.VISIBLE);
+			break;
+		case R.id.iv_collect:
+			mPresenter.setCollect();
+			break;
+		case R.id.playlist:
+			mPresenter.openPlayList();
+			break;
+		case R.id.sd:
+			mPresenter.openSDList();
+			break;
+		case R.id.usb:
+			mPresenter.openUSBList();
+			break;
+		case R.id.inand:
+			mPresenter.openiNandList();
+			break;
+		case R.id.collect:
+			mPresenter.openCollectList();
+			break;
 		}
 	}
 
@@ -194,18 +199,9 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 			((TextView)findViewById(R.id.currenttime)).setText(String.format(Locale.US, "%d:%02d:%02d", hcurrenttime, mcurrenttime, scurrenttime));
 		}
 	}
-
-	@Override
-	public void showPlaypause(Boolean playpause) {
-		isPlayPause = playpause;
-		if(playpause) {
-			((ImageView)findViewById(R.id.pp)).getDrawable().setLevel(1);
-			((ImageView)findViewById(R.id.pp2)).getDrawable().setLevel(1);
-		} else {
-			((ImageView)findViewById(R.id.pp)).getDrawable().setLevel(0);
-			((ImageView)findViewById(R.id.pp2)).getDrawable().setLevel(0);
-		}
-	}
+	public int STATE_PLAYING =1;//正在播放
+	public int STATE_PAUSE =2;//暂停
+	public int STATE_STOP =3;//停止
 
 	@Override
 	public void setPresenter(mainPresenter presenter) {
@@ -222,6 +218,7 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	@Override
 	public void showLrcorVis(Boolean b) {
 		((ImageView) findViewById(R.id.iv_fx)).getDrawable().setLevel(b?0:1);
+		//		((ImageView) findViewById(R.id.iv_lrc)).getDrawable().setLevel(b?1:0);
 		if (b) {
 			ll_fx.setVisibility(View.INVISIBLE);
 			lrc_view.setVisibility(View.VISIBLE);
@@ -290,7 +287,7 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	public void showVisualizerView(BaseVisualizerView mBaseVisualizerView) {
 		ll_fx.addView(mBaseVisualizerView);
 	}
-	
+
 
 	@Override
 	public void ondestroy() {
@@ -305,5 +302,24 @@ public class MusicActivity extends BaseActivity implements Contarct.mainView{
 	@Override
 	public void onpause() {
 		mPresenter.onpause();
+	}
+
+	@Override
+	public void showPlaypause(Boolean playpause, Boolean ispause) {
+		isPlayPause = playpause;
+		if(playpause) {
+			mAlbumArt.playMusic();
+			((ImageView)findViewById(R.id.pp)).getDrawable().setLevel(1);
+			((ImageView)findViewById(R.id.pp2)).getDrawable().setLevel(1);
+		} else {
+			if (ispause) {
+				mAlbumArt.pauseMusic();
+			}else{
+				mAlbumArt.stopMusic();
+			}
+			((ImageView)findViewById(R.id.pp)).getDrawable().setLevel(0);
+			((ImageView)findViewById(R.id.pp2)).getDrawable().setLevel(0);
+		}
+
 	}
 }

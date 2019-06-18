@@ -1,9 +1,7 @@
 package com.tw.music.presenter;
 
-import java.io.File;
 import java.io.IOException;
 
-import com.tw.music.MusicActivity;
 import com.tw.music.contarct.Contarct;
 import com.tw.music.lrc.LrcTranscoding;
 import com.tw.music.view.PreviewActivity;
@@ -19,15 +17,10 @@ import android.media.AudioManager.OnAudioFocusChangeListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.media.MediaPlayer.OnPreparedListener;
 import android.net.Uri;
-import android.os.Bundle;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.util.Log;
-import android.view.KeyEvent;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.Toast;
 
 
 public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListener, OnErrorListener{
@@ -79,7 +72,6 @@ public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListene
 			mPlayer.setActivity(this);
 			try {
 				mPlayer.setDataSourceAndPrepare(mUri);
-				Log.i("md","mUri: "+mUri+"  "+scheme);
 				mProgressRefresher.postDelayed(new ProgressRefresher(), 1000);
 			} catch (Exception ex) {
 				// catch generic Exception, since we may be called with a media
@@ -164,10 +156,7 @@ public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListene
 		try {
 			if (path != null) {
 				path = path.substring(0, path.lastIndexOf("."))+".lrc";
-				PreviewActivity.lrc_view.setLrc(LrcTranscoding.converfile(path));
-				PreviewActivity.lrc_view.setPlayer(mPlayer);
-				PreviewActivity.lrc_view.setMode(0);
-				PreviewActivity.lrc_view.init();
+				PreviewActivity.lrc_view.loadLrc(LrcTranscoding.converfile(path));
 				return path;
 			}
 		} catch (Exception e) {
@@ -260,6 +249,7 @@ public class PreviewPresenter implements Contarct.prePresenter,OnPreparedListene
 			if (mPlayer != null &&  mDuration != 0) {
 				PreView.showSeekBar(mDuration, mPlayer.getCurrentPosition());
 			}
+			PreviewActivity.lrc_view.updateTime(mPlayer.getCurrentPosition());
 			PreView.showPlaypause(mPlayer.isPlaying());
 			mProgressRefresher.removeCallbacksAndMessages(null);
 			mProgressRefresher.postDelayed(new ProgressRefresher(), 1000);

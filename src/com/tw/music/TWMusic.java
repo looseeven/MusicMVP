@@ -4,11 +4,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Locale;
 
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.tw.john.TWUtil;
+import android.util.Log;
 
 import com.tw.music.bean.MusicName;
 import com.tw.music.bean.Record;
@@ -25,9 +27,11 @@ public class TWMusic extends TWUtil {
 	        }
 	        mTW.start();
 	        mTW.resume();
+	        mTW.setIndex(mTW.mCurrentPath);
 	        mTW.mPlaylistRecord = new Record("Playlist", 0, 0);
 	        mTW.loadFile(mTW.mPlaylistRecord, mTW.mCurrentPath);
 	        mTW.toRPlaylist(mTW.mCurrentIndex);
+	        mTW.initRecord();
 		}
 		return mTW;
 	}
@@ -46,8 +50,6 @@ public class TWMusic extends TWUtil {
 	public static final int REQUEST_SERVICE = 0x9e00;
 	public static final int RETURN_MUSIC = 0x9e03;
 	public static final int RETURN_MOUNT = 0x9e1f;
-	public static final int NOTIFY_CHANGE = 0xff01;
-	public static final int SHOW_PROGRESS = 0xff02;
 
 	public void requestSource(int source) {
 		write(REQUEST_SOURCE, (1<<7) | (1<<6), source);
@@ -59,8 +61,8 @@ public class TWMusic extends TWUtil {
 
 	public static final int ACTIVITY_RUSEME = 0x03;
 	public static final int ACTIVITY_PAUSE = 0x83;
-    public static int mSDRecordLevel = 0; //为SD的序列号1 2 3
-    public static int mUSBRecordLevel = 0; //为USB的序列号1 2 3
+    public int mSDRecordLevel = 0; //为SD的序列号1 2 3
+    public int mUSBRecordLevel = 0; //为USB的序列号1 2 3
 
 	private int mService = 0;
 	public void requestService(int activity) {
@@ -93,6 +95,14 @@ public class TWMusic extends TWUtil {
 	public String mCurrentSong;
 	public Bitmap mAlbumArt;
 
+	public Record mSDRecord;
+	public Record mUSBRecord;
+	public Record mMediaRecord;
+	public Record mCList;
+	public Record mLikeRecord = new Record("LIKE", 4, 0);//用于存放收藏列表的目录
+	public ArrayList<MusicName> likeMusic = new ArrayList<MusicName>(); //收藏歌曲的列表 存有名字+路径
+	public ArrayList<Record> mSDRecordArrayList = new ArrayList<Record>(); //用于存放所有SD有关音乐的目录 SD1 2 3
+	public ArrayList<Record> mUSBRecordArrayList = new ArrayList<Record>();//用于存放所有USB有关音乐的目录 USB1 2 3
 	private void resume() {
         try {
 			BufferedReader br = null;
@@ -278,4 +288,234 @@ public class TWMusic extends TWUtil {
         }
         return false;
     }
+    
+    private void initRecord() {
+		try {
+			mTW.mSDRecord = new Record("SD", 1, 0);
+			File[] fileSD = new File("/storage").listFiles(new FileFilter() {
+				@Override
+				public boolean accept(File f) {
+					String n = f.getName();
+					if(f.canRead() && f.isDirectory() && n.startsWith("extsd")) {
+						return true;
+					}
+					return false;
+				}
+			});
+			if(fileSD != null) {
+				for(File f : fileSD) {
+					addRecordSD(f.getAbsolutePath());
+				}
+			}
+			mTW.mUSBRecord = new Record("USB", 2, 0);
+			File[] fileUSB = new File("/storage").listFiles(new FileFilter() {
+				@Override
+				public boolean accept(File f) {
+					String n = f.getName();
+					if(f.canRead() && f.isDirectory() && n.startsWith("usb")) {
+						return true;
+					}
+					return false;
+				}
+			});
+			if(fileUSB != null) {
+				for(File f : fileUSB) {
+					addRecordUSB(f.getAbsolutePath());
+				}
+			}
+			mTW.mMediaRecord = new Record("iNand", 3, 0);
+			loadVolume(mTW.mMediaRecord, "/mnt/sdcard/iNand");
+			mTW.mCList = mTW.mPlaylistRecord;
+			if (mTW.mCList.mCLength == 0) {
+				if(mTW.mSDRecordArrayList.size() > 0) {
+					mTW.mCList = mTW.mSDRecordArrayList.get(0);
+				} else {
+					mTW.mCList = mTW.mSDRecord;
+				}
+				if (mTW.mCList.mCLength == 0) {
+					if(mTW.mUSBRecordArrayList.size() > 0) {
+						mTW.mCList = mTW.mUSBRecordArrayList.get(0);
+					} else {
+						mTW.mCList = mTW.mUSBRecord;
+					}
+					if (mTW.mCList.mCLength == 0) {
+						mTW.mCList = mTW.mMediaRecord;
+						if (mTW.mCList.mCLength == 0) {
+							mTW.mCList = mTW.mPlaylistRecord;
+						}
+					}
+				}
+			}
+		}catch (Exception e){
+			Log.i("md","initRecord "+e.toString());
+		}
+	}
+	
+    public void loadVolume(Record record, String volume) {
+		if ((record != null) && (volume != null)) {
+			try {
+				BufferedReader br = null;
+				try {
+					String xpath = null;
+					if(volume.startsWith("/storage/usb") || volume.startsWith("/storage/extsd")) {
+						xpath = "/data/tw/" + volume.substring(9);
+					} else {
+						xpath = volume + "/DCIM";
+					}
+					br = new BufferedReader(new FileReader(xpath + "/.music"));
+					String path = null;
+					ArrayList<MusicName> l = new ArrayList<MusicName>();
+					while((path = br.readLine()) != null) {
+						File f = new File(volume + "/" + path);
+						if (f.canRead() && f.isDirectory()) {
+							String n = f.getName();
+							String p = f.getAbsolutePath();
+							if(n.equals(".")) {
+								String p2 = p.substring(0, p.lastIndexOf("/"));
+								String p3 = p2.substring(p2.lastIndexOf("/") + 1);
+								if(mTW.loadFileIsHas(p)){
+									l.add(new MusicName(p3, p));
+								}
+							} else {
+								if(mTW.loadFileIsHas(p)){
+									l.add(new MusicName(n, p));
+								}
+							}
+						}
+					}
+					record.setLength(l.size());
+					for(MusicName n : l) {
+						record.add(n);
+					}
+					l.clear();
+				} catch (Exception e) {
+				} finally {
+					if(br != null) {
+						br.close();
+						br = null;
+					}
+				}
+			} catch (Exception e) {
+			}
+		}
+	}
+
+	public void addRecordSD(String path) {
+		for(Record r : mTW.mSDRecordArrayList) {
+			if(path.equals(r.mName)) {
+				return;
+			}
+		}
+		Record r = new Record(path, 1, 0);
+		loadVolume(r, path);
+		mTW.mSDRecordArrayList.add(r);
+		if((mTW.mCList != null) && mTW.mCList.mName.equals("SD")) {
+			mTW.mCList = mTW.mSDRecordArrayList.get(0);
+		}
+	}
+
+	public void addRecordUSB(String path) {
+		for(Record r : mTW.mUSBRecordArrayList) {
+			if(path.equals(r.mName)) {
+				return;
+			}
+		}
+		Record r = new Record(path, 2, 0);
+		loadVolume(r, path);
+		mTW.mUSBRecordArrayList.add(r);
+		if((mTW.mCList != null) && mTW.mCList.mName.equals("USB")) {
+			mTW.mCList = mTW.mUSBRecordArrayList.get(0);
+		}
+	}
+
+	public void removeRecordSD(String path) {
+		for(Record r : mTW.mSDRecordArrayList) {
+			if(path.equals(r.mName)) {
+				Record t = mTW.mCList;
+				if(mTW.mCList.mLevel == 1) {
+					t = mTW.mCList.mPrev;
+				}
+				String s = t.mName;
+				r.clearRecord();
+				mTW.mSDRecordArrayList.remove(r);
+				if(mTW.mSDRecordLevel >= mTW.mSDRecordArrayList.size()){
+					mTW.mSDRecordLevel = mTW.mSDRecordArrayList.size() - 1;
+					if(mTW.mSDRecordLevel < 0) {
+						mTW.mSDRecordLevel = 0;
+					}
+				}
+				if(path.equals(s)) {
+					if(mTW.mSDRecordArrayList.size() > 0) {
+						mTW.mCList = mTW.mSDRecordArrayList.get(mTW.mSDRecordLevel);
+					} else {
+						mTW.mCList = mTW.mSDRecord;
+					}
+				}
+				return;
+			}
+		}
+	}
+
+	public void removeRecordUSB(String path) {
+		for(Record r : mTW.mUSBRecordArrayList) {
+			if(path.equals(r.mName)) {
+				Record t = mTW.mCList;
+				if(mTW.mCList.mLevel == 1) {
+					t = mTW.mCList.mPrev;
+				}
+				String s = t.mName;
+				r.clearRecord();
+				mTW.mUSBRecordArrayList.remove(r);
+				if(mTW.mUSBRecordLevel >= mTW.mUSBRecordArrayList.size()){
+					mTW.mUSBRecordLevel = mTW.mUSBRecordArrayList.size() - 1;
+					if(mTW.mUSBRecordLevel < 0) {
+						mTW.mUSBRecordLevel = 0;
+					}
+				}
+				if(path.equals(s)) {
+					if(mTW.mUSBRecordArrayList.size() > 0) {
+						mTW.mCList = mTW.mUSBRecordArrayList.get(mTW.mUSBRecordLevel);
+					} else {
+						mTW.mCList = mTW.mUSBRecord;
+					}
+				}
+				return;
+			}
+		}
+	}
+	
+	/**
+	 * 根据播放路径拿到临时播放目录
+	 * @param args
+	 */
+	private void setIndex(String args) {
+		if (args == null) {
+			return;
+		}
+		if(args.contains("/mnt/sdcard/iNand")){
+			mTW.mCList = mTW.mMediaRecord;
+			mTW.mCList.mIndex = 3;
+		}else if(args.contains("/storage/usb")){
+			if(mTW.mUSBRecordArrayList.size() > 0) {
+				if(mTW.mUSBRecordLevel >= mTW.mUSBRecordArrayList.size()) {
+					mTW.mUSBRecordLevel = 0;
+				}
+				mTW.mCList = mTW.mUSBRecordArrayList.get(mTW.mUSBRecordLevel);
+			} else {
+				mTW.mCList = mTW.mUSBRecord;
+			}    			
+		}else if(args.contains("/storage/extsd")){
+			if(mTW.mSDRecordArrayList.size() > 0) {
+				if(mTW.mSDRecordLevel >= mTW.mSDRecordArrayList.size()) {
+					mTW.mSDRecordLevel = 0;
+				}
+				mTW.mCList = mTW.mSDRecordArrayList.get(mTW.mSDRecordLevel);
+			} else {
+				mTW.mCList = mTW.mSDRecord;
+			}
+		}else{
+			mTW.mCList = mTW.mPlaylistRecord;
+			mTW.mCList.mIndex = 0;
+		}
+	}
 }

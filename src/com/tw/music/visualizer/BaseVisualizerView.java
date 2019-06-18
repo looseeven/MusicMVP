@@ -87,7 +87,7 @@ public class BaseVisualizerView extends View implements Visualizer.OnDataCapture
 			//                mPaint.setColor(Color.WHITE);//画笔颜色  
 			//                mPaint.setAlpha(100 - (100 / 6 * i));//倒影颜色  
 			//                canvas.drawLine(x, y1, (x + strokeLength), y1, mPaint);//绘制频谱块  
-			//            }  
+			//}  
 		}
 	}
 

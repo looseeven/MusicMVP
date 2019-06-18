@@ -3,5 +3,6 @@
     android:minWidth="350dip"
     android:minHeight="150dip"
     android:updatePeriodMillis="0"
+    android:previewImage="@drawable/music_widget_bg"
     android:initialLayout="@layout/music_widget" >
 </appwidget-provider>

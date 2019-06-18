@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Locale;
-
 import android.app.Service;
 import android.appwidget.AppWidgetManager;
 import android.content.BroadcastReceiver;
@@ -29,6 +28,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.tw.music.lrc.LrcTranscoding;
+import com.tw.music.lrc.LrcView;
 import com.tw.music.view.MusicWidgetProvider;
 
 public class MusicService extends Service {
@@ -61,12 +61,12 @@ public class MusicService extends Service {
     private boolean isACCOFF = false;
     private static final int ACTION_BACK = 0x0304;
     public static boolean mBack = false;
-
+    public boolean isPause = false;
     private Handler mHandler = new Handler() {
 		@Override
 		public void handleMessage(Message msg) {
 			switch(msg.what) {
-				case RETURN_ACCOFF:
+			case RETURN_ACCOFF:
 				if (msg.arg1 == 1 && msg.arg2 == 0) { //正式关机
 					isACCOFF = true;
 				}
@@ -85,12 +85,27 @@ public class MusicService extends Service {
 				switch(msg.arg1) {
 				case 1:
 					volume = "/storage/" + msg.obj;
+					if(msg.arg2 == 0) {
+						mTW.removeRecordSD(volume);
+					} else {
+						mTW.addRecordSD(volume);
+					}
 					break;
 				case 2:
 					volume = "/storage/" + msg.obj;
+					if(msg.arg2 == 0) {
+						mTW.removeRecordUSB(volume);
+					} else {
+						mTW.addRecordUSB(volume);
+					}
 					break;
 				case 3:
 					volume = "/mnt/sdcard/iNand";
+					if(msg.arg2 == 0) {
+						mTW.mMediaRecord.clearRecord();
+					} else {
+						mTW.loadVolume(mTW.mMediaRecord, volume);
+					}
 					break;
 				}
 				if((mTW.mCurrentPath != null) && mTW.mCurrentPath.startsWith(volume)) {
@@ -101,7 +116,9 @@ public class MusicService extends Service {
 						mTW.loadFile(mTW.mPlaylistRecord, mTW.mCurrentPath);
 						mTW.toRPlaylist(mTW.mCurrentIndex);
 				    	if(prepare(mTW.mCurrentAPath) == 0) {
-				    		seekTo(mTW.mCurrentPos);
+				    		start();
+							seekTo(mTW.mCurrentPos);
+							duck(false);
 				    	}
 					}
 				}
@@ -189,6 +206,7 @@ public class MusicService extends Service {
 				    intent.putExtra("msg_music_progress",position);
 				    intent.putExtra("msg_music_duration",duration);
 				    sendBroadcast(intent);
+	                MusicActivity.lrc_view.updateTime(position);
 				}
 				break;
 			}
@@ -279,9 +297,6 @@ public class MusicService extends Service {
 				return true;
 			}
 		});
-    	if(prepare(mTW.mCurrentAPath) == 0) {
-    		seekTo(mTW.mCurrentPos);
-    	}
     	mTW.addHandler(TAG, mHandler);
         mWidget = MusicWidgetProvider.getInstance();
 		IntentFilter commandFilter = new IntentFilter();
@@ -291,8 +306,12 @@ public class MusicService extends Service {
 		commandFilter.addAction(ACTIONPP);
 		registerReceiver(mIntentReceiver, commandFilter);
 		mHandler.sendEmptyMessageDelayed(SAVE_MUSICINFO, 3000);
+		if(prepare(mTW.mCurrentAPath) == 0) {
+			start();
+    		seekTo(mTW.mCurrentPos);
+    		duck(false);
+    	}
 	}
-
 	@Override
 	public void onDestroy() {
 		unregisterReceiver(mIntentReceiver);
@@ -350,6 +369,7 @@ public class MusicService extends Service {
 		mMediaPlayer.pause();
 		mHandler.removeMessages(SHOW_PROGRESS);
 		notifyChange();
+		isPause = true;
 	}
 
 	public boolean isPlaying() {
@@ -377,19 +397,6 @@ public class MusicService extends Service {
 		if(mTW.mAlbumArt != null) {
 			mTW.mAlbumArt = null;
 		}
-        String localeString = null;
-        Locale locale = getResources().getConfiguration().locale;
-        if (locale != null) {
-            String language = locale.getLanguage();
-            String country = locale.getCountry();
-            if (language != null) {
-                if (country != null) {
-                    localeString = language + "_" + country;
-                } else {
-                    localeString = language;
-                }
-            }
-        }
 		MediaMetadataRetriever r = new MediaMetadataRetriever();
 		try {
 			r.setDataSource(path);
@@ -427,21 +434,42 @@ public class MusicService extends Service {
 		}
 		r.release();
 	}
+	
 	private String getCurrentLrc(String path){
 		try {
 			if (path != null) {
 				path = path.substring(0, path.lastIndexOf("."))+".lrc";
-				MusicActivity.lrc_view.setLrc(LrcTranscoding.converfile(path));
-				MusicActivity.lrc_view.setPlayer(mMediaPlayer);
-				MusicActivity.lrc_view.setMode(0);				
-				MusicActivity.lrc_view.init();
+				MusicActivity.lrc_view.loadLrc(LrcTranscoding.converfile(path));
+				MusicActivity.lrc_view.setOnPlayClickListener(new LrcView.OnPlayClickListener() {
+			            @Override
+			            public boolean onPlayClick(long time) {
+			                seekTo((int) time);
+			                if (!isPlaying()) {
+			                    mHandler.post(runnable);
+			                    start();
+			                }
+			                return true;
+			            }
+			        });
 				return path;
 			}
 		} catch (Exception e) {
     		e.printStackTrace();
+    		Log.i(TAG, ""+e.toString());
 		}
 		return path;
 	}
+	private Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isPlaying()) {
+                long time = getCurrentPosition();
+                MusicActivity.lrc_view.updateTime((int)time);
+                seekTo((int)time);
+            }
+            mHandler.postDelayed(this, 10);
+        }
+    };
     private void rew() {
     	if(mMediaPlayer.isPlaying()) {
         	int pos = mMediaPlayer.getCurrentPosition();
@@ -504,6 +532,7 @@ public class MusicService extends Service {
 
 	public void current(int pos, boolean r) {
 		synchronized (mTW) {
+			isPause = false;
 			int [] p = mTW.mRPlaylist;
 			if(p != null) {
 				int length = p.length;
@@ -654,6 +683,7 @@ public class MusicService extends Service {
 			}
 			FileUtils.setPermissions("/data/tw/music", 0666, -1, -1);
 		} catch (Exception e) {
+			Log.i(TAG, "save "+e.toString());
 		}
     }
 
